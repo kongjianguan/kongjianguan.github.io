@@ -3,17 +3,17 @@
 export const Imgs: Array<string> = [
   // '/images/129487999_p0.jpg', // 菲比
   '/images/133464975_p0.jpg', // 大昔涟
-  '/images/X@226083260Bubai-20260513.jpg', // 荧妹
+  '/images/X_at_226083260Bubai-20260513.jpg', // 荧妹
   '/images/144852565.jpg', // 绯英
-  '/images/X@ZZZZZMjiangzz-20260513.jpg', // 绯英
-  '/images/X@FMakrZHnl46IP8D-20260513.jpg', // 绯英
-  '/images/X@yutttang-20260513.jpg', // 绯英
-  '/images/X@BUM_HICO_20260423.jpg',  // 银狼
+  '/images/X_at_ZZZZZMjiangzz-20260513.jpg', // 绯英
+  '/images/X_at_FMakrZHnl46IP8D-20260513.jpg', // 绯英
+  '/images/X_at_yutttang-20260513.jpg', // 绯英
+  '/images/X_at_BUM_HICO_20260423.jpg',  // 银狼
   '/images/144130853_p0.jpg',  // 银狼
   '/images/143933879_p0.jpg', // 银狼
   // '/images/144370432_p0.jpg', //爱弥斯 漂泊者 合照
-  // '/images/X@ddengart-2019818370867294543.jpg',   // 爱弥斯
-  // '/images/X@vvsimyeol-1874745010434068680.jpg',  // 珂莱塔
+  // '/images/X_at_ddengart-2019818370867294543.jpg',   // 爱弥斯
+  // '/images/X_at_vvsimyeol-1874745010434068680.jpg',  // 珂莱塔
   '/images/142653295_p0.jpg', // 绝区零 妄想天使
   '/images/142097456_p0.jpg', // 绝区零 妄想天使
   // '/images/140937524_p0.jpg', // 鸣潮 爱弥斯
@@ -85,7 +85,7 @@ export const Imgs: Array<string> = [
 
   // 绝区零
   '/images/122710477_p0.jpg',  // 妮可 & 鲨鱼妹
-  '/images/X@rina_0A-2024-7-6.jpg', // 妮可 超市
+  '/images/X_at_rina_0A-2024-7-6.jpg', // 妮可 超市
   '/images/121269323_p0.jpg',  // 鲨鱼妹
   '/images/123353563_p0.png',  // 柏妮思
 
@@ -169,7 +169,7 @@ export const Imgs: Array<string> = [
   '/images/Mikasa.jpg',       // 三笠
   '/images/saber.jpg',        // fate
   '/images/123800363_p0.jpg', // 夏日重现
-  '/images/gojo-eyes-jujutsu-kaisen-hd-wallpaper-uhdpaper.com-208@2@a.jpg', // 五条悟
+  '/images/gojo-eyes-jujutsu-kaisen-hd-wallpaper-uhdpaper.com-208_at_2_at_a.jpg', // 五条悟
   '/images/135718569_p0.jpg', // 蕾塞
 
   // 冰菓
