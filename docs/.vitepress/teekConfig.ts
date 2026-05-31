@@ -55,7 +55,7 @@ export const teekConfig = defineTeekConfig({
   footerInfo: {
     // 博客版权配置
     copyright: {
-      show: true, // 是否显示博客版权
+      show: false, // 是否显示博客版权
       createYear: 2026, // 创建年份
       suffix: "kongjianguan", // 后缀
     },
@@ -74,8 +74,8 @@ export const teekConfig = defineTeekConfig({
     // 博主信息，显示在首页左边第一个卡片
   blogger: {
     name: "kongjianguan", // 博主昵称
-    slogan: "学生", // 博主签名
-    avatar: "", // 博主头像（暂空）
+    slogan: "学生, 编程爱好者, 看动漫, 看ACG live", // 博主签名
+    avatar: "https://avatars.githubusercontent.com/u/103617573?v=4", // 博主头像（GitHub头像）
     shape: "circle", // 头像风格
     circleSize: 100, // 头像大小
     color: "#ffffff", // 字体颜色
@@ -87,8 +87,8 @@ export const teekConfig = defineTeekConfig({
   bodyBgImg: {
     imgSrc: Imgs, // 背景图地址，支持单张或多张（数组形式）
     imgOpacity: 1, // 背景图透明度，选值 0.1 ~ 1.0
-    imgInterval: 30000, //  当有多张背景图时（imgSrc 为数组），设置切换时间，单位：毫秒
-    imgShuffle: false, // 是否随机切换
+    imgInterval: 3000, //  当有多张背景图时（imgSrc 为数组），设置切换时间，单位：毫秒
+    imgShuffle: true, // 是否随机切换
     mask: false // 背景图遮罩
   },   
 
@@ -137,14 +137,14 @@ export const teekConfig = defineTeekConfig({
   // 站点信息卡片配置
   docAnalysis: {
     enabled: true, // 是否启用站点信息卡片
-    createTime: "2020-04-01", // 站点创建时间
+    createTime: "2026-05-30", // 站点创建时间
     wordCount: true, // 是否开启文章页的字数统计
-    readingTime: true, // 是否开启文章页的阅读时长统计
+    readingTime: false, // 是否开启文章页的阅读时长统计
     // 访问量、访客数统计配置
     statistics: {
       provider: "busuanzi", // 网站流量统计提供商
-      siteView: true, // 是否开启首页的访问量和排名统计
-      pageView: true, // 是否开启文章页的浏览量统计
+      siteView: false, // 是否开启首页的访问量和排名统计
+      pageView: false, // 是否开启文章页的浏览量统计
       tryRequest: false, // 如果请求网站流量统计接口失败，是否重试
       tryCount: 5, // 重试次数，仅当 tryRequest 为 true 时有效
       tryIterationTime: 2000, // 重试间隔时间，单位：毫秒，仅当 tryRequest 为 true 时有效
@@ -162,9 +162,9 @@ export const teekConfig = defineTeekConfig({
   },
 
   // 赞赏功能配置 https://vp.teek.top/reference/article-config.html#appreciation
-  appreciation: {
-    enabled: false,
-  },
+  // appreciation: {
+  //   enabled: false,
+  // },
 
   // 文章分享配置
   articleShare: {

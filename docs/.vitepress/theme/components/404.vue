@@ -66,7 +66,7 @@ onMounted(() => {
   width: 100%;
   display: flex;
   align-items: stretch;
-  background-image: url("https://image.peterjxl.com/blog/andy-holmes-698828-unsplash.jpg");
+  background-image: url("/VitePressBlog/images/140014451_p0.jpg");
   background-size: cover;
   background-repeat: no-repeat;
   color: rgba(255, 255, 255, 0.87);

@@ -1,5 +1,5 @@
 //  社交图标，显示于博主信息栏和页脚栏  参考 https://vp.teek.top/guide/icon-use.html#社交图标-iconfont
-import { github, bilibili } from "../theme/icon/icons";
+import { github, bilibili, zhihu } from "../theme/icon/icons";
 import type { Social } from "vitepress-theme-teek/config";
 
 export const SocialLinks: Social[] = [
@@ -13,6 +13,12 @@ export const SocialLinks: Social[] = [
     name: "B站",
     icon: bilibili,
     iconType: "component",
-    link: "https://space.bilibili.com/", // TODO: 替换为你的 B站空间 UID 链接
+    link: "https://space.bilibili.com/549071468/", // TODO: 替换为你的 B站空间 UID 链接
+  },
+  {
+    name:"知乎",
+    icon: zhihu,
+    iconType:"component",
+    link:"https://www.zhihu.com"
   },
 ];

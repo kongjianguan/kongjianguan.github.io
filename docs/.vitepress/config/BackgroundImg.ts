@@ -1,7 +1,7 @@
 // 博客背景图地址列表，也是默认封面图地址列表，导出给 teekConfig.ts 使用
 
 export const Imgs: Array<string> = [
-  '/images/129487999_p0.jpg', // 菲比
+  // '/images/129487999_p0.jpg', // 菲比
   '/images/133464975_p0.jpg', // 大昔涟
   '/images/X@226083260Bubai-20260513.jpg', // 荧妹
   '/images/144852565.jpg', // 绯英
@@ -11,13 +11,13 @@ export const Imgs: Array<string> = [
   '/images/X@BUM_HICO_20260423.jpg',  // 银狼
   '/images/144130853_p0.jpg',  // 银狼
   '/images/143933879_p0.jpg', // 银狼
-  '/images/144370432_p0.jpg', //爱弥斯 漂泊者 合照
-  '/images/X@ddengart-2019818370867294543.jpg',   // 爱弥斯
-  '/images/X@vvsimyeol-1874745010434068680.jpg',  // 珂莱塔
+  // '/images/144370432_p0.jpg', //爱弥斯 漂泊者 合照
+  // '/images/X@ddengart-2019818370867294543.jpg',   // 爱弥斯
+  // '/images/X@vvsimyeol-1874745010434068680.jpg',  // 珂莱塔
   '/images/142653295_p0.jpg', // 绝区零 妄想天使
   '/images/142097456_p0.jpg', // 绝区零 妄想天使
-  '/images/140937524_p0.jpg', // 鸣潮 爱弥斯
-  '/images/120189621_p0.jpg', // 鸣潮 长离
+  // '/images/140937524_p0.jpg', // 鸣潮 爱弥斯
+  // '/images/120189621_p0.jpg', // 鸣潮 长离
   '/images/142598882_p0.jpg', // 鸣潮 西格莉卡
   '/images/120717943_p0.jpg', // 绝区零 鲨鱼
   '/images/142788495_p0.jpg', // 宇宙
@@ -28,7 +28,7 @@ export const Imgs: Array<string> = [
   '/images/142207274_p0.jpg', // 火花
   '/images/141913369_p0.jpg', // 花火火花
   '/images/134420820_p0.jpg', // 流萤
-  '/images/142094263_p0.jpg', // Fate
+  // '/images/142094263_p0.jpg', // Fate
   '/images/2026-3-12-20.jpg', // 绝区零 妄想天使
   '/images/2026-3-12-7.jpg',  // 绝区零 妄想天使
   '/images/2026-02-23.jpg',   // 绝区零 妄想天使
@@ -42,9 +42,9 @@ export const Imgs: Array<string> = [
   '/images/134732001_p0.jpg', // 死之执政
 
 
-  '/images/142052076_p0.jpg', // 爱弥斯
-  '/images/142210069_p0.jpg', // 爱弥斯
-  '/images/140831812_p0.jpg', // 鸣潮 爱弥斯
+  // '/images/142052076_p0.jpg', // 爱弥斯
+  // '/images/142210069_p0.jpg', // 爱弥斯
+  // '/images/140831812_p0.jpg', // 鸣潮 爱弥斯
   '/images/140161372_p0.jpg', // 原神群星 哥伦比娅
   '/images/141274290_p0.jpg', // 哥伦比娅 & 桑多涅
   '/images/141050669_p0.jpg', // 哥伦比娅
@@ -55,7 +55,7 @@ export const Imgs: Array<string> = [
   '/images/139980512_p0.jpg', // 哥伦比娅 雅珂达 派蒙
 
   // 原神
-  '/images/134.jpg',          // 胡桃
+  // '/images/134.jpg',          // 胡桃（原CDN不存在此文件）
   '/images/125077204_p0.jpg', // 胡桃
   '/images/122658264_p0.jpg', // 胡桃 & 芙芙 
   '/images/138439477_p0.jpg', // 芙芙 
@@ -159,8 +159,8 @@ export const Imgs: Array<string> = [
   '/images/109565821_p0.png',
 
   // 二次元
-  '/images/180.jpg',          // 下拉裙摆
-  '/images/4.2b.png',         // 尼尔·机械纪元
+  // '/images/180.jpg',          // 下拉裙摆（原CDN不存在此文件）
+  // '/images/4.2b.png',         // 尼尔·机械纪元（原CDN不存在此文件）
   '/images/116406855_p0.png', // 莉可莉丝
   '/images/2020-04-03_16-23-36.png', // 鬼灭之刃
   '/images/114613535_p0.png', // 葬送的芙莉莲

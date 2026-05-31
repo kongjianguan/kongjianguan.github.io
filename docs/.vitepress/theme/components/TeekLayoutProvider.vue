@@ -5,6 +5,7 @@ import NotFound from "./404.vue";
 
 // 看板娘配置
 import { onMounted } from 'vue';
+import { withBase } from 'vitepress';
 onMounted(async () => {
   const { loadOml2d } = await import('oh-my-live2d');
   loadOml2d({
@@ -13,10 +14,10 @@ onMounted(async () => {
     mobileDisplay: false, // 是否在移动设备上显示模型，默认为 false
     models: [
       {
-        path: '/rem/model.json',
+        path: withBase('/rem/model.json'),
       },
       {
-        path: '/cat-black/model.json',
+        path: withBase('/cat-black/model.json'),
       },
     ],
 

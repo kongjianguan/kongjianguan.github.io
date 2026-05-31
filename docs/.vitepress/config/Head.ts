@@ -2,7 +2,7 @@
 export const HeadData = [
 
   // 图标
-  ['link', { rel: 'icon', href: '/favicon.ico' }],
+  ['link', { rel: 'icon', href: 'https://avatars.githubusercontent.com/u/103617573?v=4' }],
 
   // 浏览器控制台输出
   [
