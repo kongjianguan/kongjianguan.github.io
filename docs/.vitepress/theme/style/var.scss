@@ -1,0 +1,14 @@
+/* H1 标题颜色 */
+.VPDoc h1 {
+  background: linear-gradient(
+    114.2deg,
+    rgba(184, 215, 21, 1) -15.3%,
+    rgba(148, 187, 233, 1) 14.5%,
+    rgba(21, 215, 182, 1) 38.7%,
+    rgba(129, 189, 240, 1) 58.8%,
+    rgba(240, 129, 129, 1) 88.5%
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}

@@ -1,0 +1,32 @@
+// 修复移动端 X 轴溢出
+html,
+body,
+#app {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+// 避免元素宽度把视口撑爆
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+// 常见媒体元素防溢出
+img,
+video,
+canvas,
+svg,
+iframe {
+  max-width: 100%;
+  height: auto;
+}
+
+// 表格在小屏允许横向滚动，而不是把整页撑宽
+table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
