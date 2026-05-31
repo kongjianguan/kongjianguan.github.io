@@ -21,23 +21,15 @@ export const teekConfig = defineTeekConfig({
   // 首页 Banner 配置
   banner: {
     enabled: true, // 是否启用 Banner
-    name: "晓林的博客", // Banner 标题，默认读取 vitepress 的 title 属性
+    name: "kongjianguan的日记", // Banner 标题，默认读取 vitepress 的 title 属性
     textColor: "#ffffff", // Banner 字体颜色，bgStyle 为 pure 时为 '#000000'，其他为 '#ffffff'
     titleFontSize: "3.2rem", // 标题字体大小
     descFontSize: "1.4rem", // 描述字体大小
     descStyle: "switch", // 描述信息风格：default 为纯文字渲染风格（如果 description 为数组，则取第一个），types 为文字打印风格，switch 为文字切换风格
     description: [
-      "欢迎光临！",
-      '跳出三贷之外，不在五险之中',
-      '真理愈辩愈明，谎言却总靠沉默维持',
-      '你知道吗，打翻咖啡比喝下咖啡让人更有精神',
-      '那些说星星好看的人一定没有看过你的眼睛',
-      '哪有什么突然想起，只是一直放在心里',
-      '对未来的真正慷慨，是把一切献给现在',
-      '做了和大多数人一样的选择，会得到和大多数人一样的结果',
-      '人一旦在付出努力未能实时获得反馈时，就会变得极其懒惰',
-      '年轻人的时薪已经比停车位还低了。停车费有 8 小时上限，年轻人没有'
-    ], // 描述信息
+      "要组一辈子乐队吗？",
+      "为世界上一切美好而战！",
+      ], // 描述信息
     switchTime: 6000, // 描述信息切换间隔时间，单位：毫秒。descStyle 为 switch 时生效
     switchShuffle: false, // 描述信息是否随机切换，为 false 时按顺序切换。descStyle 为 switch 时生效
   },
