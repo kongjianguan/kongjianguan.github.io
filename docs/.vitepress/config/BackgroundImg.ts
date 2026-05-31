@@ -183,7 +183,7 @@ export const oldImgs: Array<string> = [
 ]
 export const Imgs:Array<string> = [
   // 某科学的超电磁炮
-  '/images/[あいむaimu] 99605266.png', //四人组
-  '/images/[黒羽鏡夜] 109932844.png', //蜂琴黑三人喝茶
+  '/images/99605266.png', //四人组
+  '/images/109932844.png', //蜂琴黑三人喝茶
   '/images/美琴微笑回首_Real-ESRGANv3-anime_0720_185651.png',
 ]
