@@ -62,20 +62,6 @@ export default defineConfig({
         text: '💻 编程',
         items: [
           {
-            text: '📚 计算机基础',
-            items: [
-              { text: '计算机简史', link: '/Computer/History/' },
-              { text: '数字电路', link: '/Computer/Digital-Circuit/' },
-              { text: '计算机组成原理', link: '/Computer/Principles-of-Computer-Organization/' },
-              { text: '操作系统', link: '/Computer/Operating-System/' },
-              { text: 'Linux', link: '/Computer/Linux/' },
-              { text: '计算机网络', link: '/Computer/Network/' },
-              { text: '数据库', link: '/Computer/MySQL/' },
-              { text: '编程工具', link: '/Computer/Programming-Tool/' },
-              { text: '装机', link: '/Computer/Assembling/' },
-            ]
-          },
-          {
             text: '🎨 前端',
             items: [
               { text: 'Node', link: '/Front-End/Node/' },
@@ -99,7 +85,14 @@ export default defineConfig({
 
       {
         text: '👨‍💻 关于',
-        items: []
+        items: [
+          {
+            text: '博客',
+            items: [
+              { text: '历程', link: '/About/History/' },
+            ]
+          }
+        ]
       }
     ],
 
