@@ -1,12 +1,11 @@
 {
-  "name": "vuepressblog",
+  "name": "kongjianguan",
   "version": "1.0.0",
-  "description": "PeterJXL's blog, build with Vuepress",
-  "main": "./docs/.vuepress/config.ts",
-  "homepage": "http://www.peterjxl.com/",
+  "description": "Personal blog built with VitePress",
+  "homepage": "https://github.com/kongjianguan/VitePressBlog",
   "scripts": {
     "dev": "vitepress dev docs",
-    "build": "set NODE_OPTIONS=--max-old-space-size=5120 && vitepress build docs",
+    "build": "NODE_OPTIONS=--max-old-space-size=5120 vitepress build docs",
     "preview": "vitepress preview docs"
   },
   "dependencies": {
