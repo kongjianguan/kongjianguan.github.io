@@ -75,7 +75,7 @@ export const teekConfig = defineTeekConfig({
   blogger: {
     name: "kongjianguan", // 博主昵称
     slogan: "学生, 编程爱好者, 看动漫, 看ACG live", // 博主签名
-    avatar: "https://avatars.githubusercontent.com/u/103617573?v=4", // 博主头像（GitHub头像）
+    avatar: "https://cdn.jsdmirror.com/gh/kongjianguan/images/avatar.jpg", // 博主头像（GitHub头像）
     shape: "circle", // 头像风格
     circleSize: 100, // 头像大小
     color: "#ffffff", // 字体颜色
