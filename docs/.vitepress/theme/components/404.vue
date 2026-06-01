@@ -4,7 +4,7 @@ import { onMounted, onBeforeUnmount, ref } from "vue";
 import { useRouter } from "vitepress";
 
 const router = useRouter();
-const goHome = () => router.go("/VitePressBlog");
+const goHome = () => router.go("/");
 const bgImage = `url(https://cdn.jsdmirror.com/gh/kongjianguan/images/109932844.png)`;
 
 const count = ref(0);

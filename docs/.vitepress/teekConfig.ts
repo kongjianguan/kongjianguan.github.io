@@ -85,9 +85,10 @@ export const teekConfig = defineTeekConfig({
   
   // 背景图配置，将整个网站的背景色改为图片
   bodyBgImg: {
+    
     imgSrc: Imgs, // 背景图地址，支持单张或多张（数组形式）
     imgOpacity: 1, // 背景图透明度，选值 0.1 ~ 1.0
-    imgInterval: 3000, //  当有多张背景图时（imgSrc 为数组），设置切换时间，单位：毫秒
+    imgInterval: 10000, //  当有多张背景图时（imgSrc 为数组），设置切换时间，单位：毫秒
     imgShuffle: true, // 是否随机切换
     mask: false // 背景图遮罩
   },   

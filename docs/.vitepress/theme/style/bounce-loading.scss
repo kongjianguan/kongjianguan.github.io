@@ -4,7 +4,7 @@
   width: 12px !important;
   height: 12px !important;
   margin: 0 auto 20px !important;
-  position: relative;
+  position: relative; /* 为 ::before / ::after 伪元素提供 absolute 定位参照 */
   background: var(--vp-c-brand-1);
   border-radius: 50%;
   animation: tk-bounce-dot 1.4s ease-in-out infinite both;

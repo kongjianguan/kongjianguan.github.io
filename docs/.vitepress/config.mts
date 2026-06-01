@@ -10,7 +10,7 @@ export default defineConfig({
 
   title: "kongjianguan",
   description: "个人博客，学习，生活，音乐",
-  base: process.env.CF_PAGES ? '/' : '/VitePressBlog/',
+  base: process.env.CF_PAGES || process.env.VERCEL ? '/' : '/VitePressBlog/',
   head: HeadData as HeadConfig[],
   extends: teekConfig,
   cleanUrls: true,  // 不显示 .html 后缀

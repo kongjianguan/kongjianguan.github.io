@@ -3,7 +3,7 @@
 
 const imgBase = process.env.LOCALIMGSRC === '1' ? '/images' : 'https://cdn.jsdmirror.com/gh/kongjianguan/images';
 
-export const OldImgs: Array<string> = [
+export const Imgs: Array<string> = [
   // `${imgBase}/129487999_p0.jpg`, // 菲比
   `${imgBase}/133464975_p0.jpg`, // 大昔涟
   `${imgBase}/X@226083260Bubai-20260513.jpg`, // 荧妹
@@ -180,8 +180,8 @@ export const OldImgs: Array<string> = [
   `${imgBase}/bingguo.jpg`,
 
   `${imgBase}/MEME-Kaofish.jpg`, // 烤鱼
-]
-export const Imgs:Array<string> = [
+// ]
+// export const Imgs:Array<string> = [
   // 某科学的超电磁炮
   `${imgBase}/99605266.png`, // 四人组
   `${imgBase}/109932844.png`, // 蜂琴黑三人喝茶
