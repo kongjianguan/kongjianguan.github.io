@@ -143,7 +143,7 @@ export const teekConfig = defineTeekConfig({
     readingTime: false, // 是否开启文章页的阅读时长统计
     // 访问量、访客数统计配置
     statistics: {
-      provider: "busuanzi", // 网站流量统计提供商
+      provider: "vercount", // 网站流量统计提供商
       siteView: true, // 是否开启首页的访问量和排名统计
       pageView: true, // 是否开启文章页的浏览量统计
       tryRequest: false, // 如果请求网站流量统计接口失败，是否重试
