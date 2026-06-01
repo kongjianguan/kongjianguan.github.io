@@ -58,17 +58,17 @@ export default defineConfig({
     // https://vitepress.dev/reference/default-theme-config
     nav: [
       { text: '首页', link: '/' },
-      // {
-      //   text: '💻 编程',
-      //   items: [
-      //     {
-      //       text: '🎨 前端',
-      //       items: [
-      //         { text: 'Node', link: '/Front-End/Node/' },
-      //       ]
-      //     },
-      //   ]
-      // },
+      {
+        text: '💻 编程',
+        items: [
+          {
+            text: '☁💡🎈 ACM',
+            items: [
+              { text: '算法', link: '/ACM/Algorithm/' },
+            ]
+          },
+        ]
+      },
       // {
       //   text: '🛠️软件',
       //   items: []
