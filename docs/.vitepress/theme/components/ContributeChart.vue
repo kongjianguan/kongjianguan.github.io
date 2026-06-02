@@ -30,6 +30,7 @@ const contributeList = computed(() => {
 
 const chartRef = useTemplateRef("chartRef");
 const contributeChart = ref();
+const echartsPromise = import("echarts");
 
 const { create } = useIntersectionObserver(
   chartRef,
@@ -101,7 +102,7 @@ const option = {
 
 // 渲染贡献图
 const renderChart = async (data: any) => {
-  const echarts = await import("echarts");
+  const echarts = await echartsPromise;
   option.calendar.itemStyle.borderColor = isDark.value ? "#1b1b1f" : "#fff";
   option.calendar.itemStyle.color = isDark.value ? "#787878" : "#ebedf0";
 
@@ -116,14 +117,22 @@ watch(
   contributeList,
   async newValue => {
     await nextTick();
-    await renderChart(newValue);
+    try {
+      await renderChart(newValue);
+    } catch (error) {
+      console.error("渲染贡献图失败:", error);
+    }
   },
   { flush: "post" }
 );
 
 watch(isDark, async () => {
   await nextTick();
-  await renderChart(contributeList.value);
+  try {
+    await renderChart(contributeList.value);
+  } catch (error) {
+    console.error("切换深色模式后渲染贡献图失败:", error);
+  }
 });
 
 onMounted(() => {
