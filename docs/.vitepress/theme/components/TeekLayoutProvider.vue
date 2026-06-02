@@ -14,10 +14,10 @@ onMounted(async () => {
     mobileDisplay: false, // 是否在移动设备上显示模型，默认为 false
     models: [
       {
-        path: withBase('/rem/model.json'),
+        path: withBase('/anon_037_live_default/model.json'),
       },
       {
-        path: withBase('/cat-black/model.json'),
+        path: withBase('/rem/model.json'),
       },
     ],
 
@@ -28,6 +28,12 @@ onMounted(async () => {
     tips: {
       copyTips: { // 复制提示文本
         message: ['你复制了什么内容呢?记得注明出处哦~']
+      },
+      style: {
+        zIndex: 9999, // 层级最高，确保文字在画布之上
+        top: 'auto', // 覆盖默认 top:0，避免气泡在舞台内与模型重叠
+        bottom: 'calc(100%)', // 气泡底部对齐舞台上边缘
+        // transform: 'translateX(-50%)' // 水平居中
       },
     }
 
