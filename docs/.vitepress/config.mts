@@ -64,7 +64,7 @@ export default defineConfig({
           {
             text: '☁💡🎈 ACM',
             items: [
-              { text: '算法', link: '/ACM/Algorithm/' },
+              { text: '算法', link: '/ACM/algorithm/' },
             ]
           },
           {
