@@ -8,7 +8,7 @@ import { createRewrites } from "vitepress-theme-teek/config";
 
 export default defineConfig({
   
-  title: "kongjianguan",
+  title: "KONGJIANGUAN",
   description: "个人博客，学习，生活，音乐",
   base: '/',
   head: HeadData as HeadConfig[],
@@ -77,10 +77,15 @@ export default defineConfig({
           },
         ]
       },
-      // {
-      //   text: '🛠️软件',
-      //   items: []
-      // },
+      {
+        text: '软件',
+        items: [
+          {
+            text:'工具',
+            link:'/Software'
+          }
+        ]
+      },
 
       // {
       //   text: '📚 学习',
@@ -98,6 +103,7 @@ export default defineConfig({
             text: '博客',
             items: [
               { text: '历程', link: '/About/History/' },
+              { text: 'UtaBuild', link: '/About/History/utabuild-intro/' },
             ]
           }
         ]
