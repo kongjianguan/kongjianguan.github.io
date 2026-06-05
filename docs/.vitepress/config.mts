@@ -9,7 +9,7 @@ import { createRewrites } from "vitepress-theme-teek/config";
 export default defineConfig({
   
   title: "KONGJIANGUAN",
-  description: "个人博客，学习，生活，音乐",
+  description: "え？雲☁😄、タッタッタッタッタ、原神がめちゃくちゃやりたい😨、クラウド原神😙、ドンドンドンドン😊、華やかな世界を見よう👍🎊😆、クラウド原神😄、うううう、原神がやりたい😭😭😭クラウド原神、友達が待ってるよ😊😃😆、一緒に原神をやろう、クラウド原神！あああああ😙、原神がやりたい😙クラウド原神、ははははは🤣🤣🤣、一緒に原神をやろう、クラウド原神、すごくすごく、🤩原神がやりたい😋ウェブクラウド版、低消費電力で画質も劣化なし😌、WiFiもLANケーブルも🥰、どっちでも60フレーム😍、さあさあ👏、クラウド原神に入ろう",
   base: '/',
   head: HeadData as HeadConfig[],
   extends: teekConfig,
