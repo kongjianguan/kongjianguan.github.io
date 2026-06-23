@@ -27,8 +27,9 @@ export const teekConfig = defineTeekConfig({
     descFontSize: "1.4rem", // 描述字体大小
     descStyle: "switch", // 描述信息风格：default 为纯文字渲染风格（如果 description 为数组，则取第一个），types 为文字打印风格，switch 为文字切换风格
     description: [
-      "要组一辈子乐队吗？-「迷途之子」",
+      "一生バンドしてくれる？-「迷途之子」",
       "为世界上一切美好而战！-「崩坏3rd」",
+      "Get it pulverized - 「Interstellar Journey」"
       ], // 描述信息
     switchTime: 6000, // 描述信息切换间隔时间，单位：毫秒。descStyle 为 switch 时生效
     switchShuffle: true, // 描述信息是否随机切换，为 false 时按顺序切换。descStyle 为 switch 时生效

@@ -9,3 +9,7 @@ docs/.vitepress/cache
 
 # superpowers internal docs
 docs/superpowers/
+
+# environment variables
+.env
+.DS_Store

@@ -29,7 +29,7 @@ description: 一个日语歌词注音软件
 用的是 Rust + Tauri 写的，所以打包出来体积不大。有两种使用方式：
 
 - **CLI 命令行**：适合命令行操作和自动化，无状态适合Agent交互，搜索结果和歌词都以 JSON 格式输出
-- **桌面 GUI**：后端还是CLI，支持Android和Windows(理论上也支持Mac OS和Linux)，搜歌、看歌词、调字号都有，内置一套缓存系统
+- **GUI**：后端是CLI，支持Android、Windows、macOS、Linux，搜歌、看歌词、调字号都有，内置一套缓存系统
 
 下面是《春日影》的歌词效果，每个汉字上面会自动标注读音：
 
