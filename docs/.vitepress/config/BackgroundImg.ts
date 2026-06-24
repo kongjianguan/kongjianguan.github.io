@@ -81,7 +81,7 @@ export const Imgs: Array<string> = [
   // 鸣潮
 
   // 星穹铁道
-  '${imgBase}/流萤_116629910.png'//流萤与开拓者
+  `${imgBase}/流萤_116629910.png`,//流萤与开拓者
   `${imgBase}/2025-05-04.jpg`,   // 遐蝶
   `${imgBase}/2025-02-07.jpg`,   // 遐蝶
   `${imgBase}/128181590_p0.jpg`, // 遐蝶
