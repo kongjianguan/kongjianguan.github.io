@@ -138,10 +138,6 @@ export const Imgs: Array<string> = [
   `${imgBase}/gojo-eyes-jujutsu-kaisen-hd-wallpaper-uhdpaper.com-208@2@a.jpg`, // 五条悟
   `${imgBase}/135718569_p0.jpg`, // 蕾塞
 
-  // 冰菓
-  `${imgBase}/690112.jpg`,
-  `${imgBase}/bingguo.jpg`,
-
   `${imgBase}/MEME-Kaofish.jpg`, // 烤鱼
   // 某科学的超电磁炮
   `${imgBase}/99605266.png`, // 四人组
