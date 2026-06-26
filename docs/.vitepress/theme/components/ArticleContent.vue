@@ -24,7 +24,7 @@ const {
 const showCommitDialog = ref(false)
 const fmCollapsed = ref(false)
 
-const editParam = computed(() => route.query.edit === 'true')
+const editParam = computed(() => route.query?.edit === 'true')
 
 function getFilePathFromPage(): string {
   return page.value.relativePath || ''
@@ -55,7 +55,7 @@ function handleExitEdit() {
   if (isDirty.value) {
     if (!confirm('有未保存的修改，确定退出吗？')) return
   }
-  const query = { ...route.query }
+  const query = { ...(route.query || {}) }
   delete query.edit
   router.go(window.location.pathname + (Object.keys(query).length ? '?' + new URLSearchParams(query as Record<string, string>).toString() : ''))
 }

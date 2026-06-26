@@ -89,16 +89,18 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 4px 8px;
-  border-radius: 6px;
-  border: 1px solid var(--vp-c-divider);
-  background: var(--vp-c-bg-soft);
+  padding: 0 12px;
+  line-height: var(--vp-nav-height);
+  font-size: 14px;
+  font-weight: 500;
+  border: none;
+  background: none;
   color: var(--vp-c-text-1);
   cursor: pointer;
-  transition: background 0.2s;
+  transition: color 0.25s;
 }
 
 .new-article-btn:hover {
-  background: var(--vp-c-bg-mute);
+  color: var(--vp-c-brand-1);
 }
 </style>
