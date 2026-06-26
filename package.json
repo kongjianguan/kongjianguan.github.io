@@ -9,6 +9,9 @@
     "preview": "vitepress preview docs"
   },
   "dependencies": {
+    "@milkdown/crepe": "^7.21.2",
+    "@milkdown/kit": "^7.21.2",
+    "@milkdown/vue": "^7.21.2",
     "echarts": "^6.0.0",
     "markdown-it": "^14.1.0",
     "markdown-it-mathjax3": "^4.3.2",
