@@ -1,31 +1,68 @@
-// Milkdown Crepe theme overrides to adapt to Teek light/dark theme
-.milkdown {
-  --crepe-color-primary: var(--vp-c-brand);
-  --crepe-color-primary-hover: var(--vp-c-brand-dark);
+// Milkdown Crepe theme overrides — use higher specificity to beat dynamically-loaded Crepe CSS
+.editor-container .milkdown {
   --crepe-color-background: var(--vp-c-bg);
+  --crepe-color-on-background: var(--vp-c-text-1);
   --crepe-color-surface: var(--vp-c-bg-soft);
   --crepe-color-surface-low: var(--vp-c-bg-alt);
-  --crepe-color-on-background: var(--vp-c-text-1);
-  --crepe-color-on-surface: var(--vp-c-text-2);
-  --crepe-color-on-surface-variant: var(--vp-c-text-3);
+  --crepe-color-on-surface: var(--vp-c-text-1);
+  --crepe-color-on-surface-variant: var(--vp-c-text-2);
   --crepe-color-outline: var(--vp-c-divider);
+  --crepe-color-primary: var(--vp-c-brand);
+  --crepe-color-secondary: var(--vp-c-brand-soft);
+  --crepe-color-on-secondary: var(--vp-c-brand);
+  --crepe-color-inverse: var(--vp-c-text-1);
+  --crepe-color-on-inverse: var(--vp-c-bg);
+  --crepe-color-inline-code: var(--vp-c-brand);
+  --crepe-color-error: var(--vp-c-danger);
+  --crepe-color-hover: var(--vp-c-bg-mute);
+  --crepe-color-selected: var(--vp-c-bg-soft);
+  --crepe-color-inline-area: var(--vp-c-bg-alt);
   --crepe-color-shadow: var(--vp-c-shadow);
 
   font-family: var(--vp-font-family-base);
+
+  .cm-editor {
+    background: var(--vp-c-bg);
+    color: var(--vp-c-text-1);
+
+    .cm-content {
+      caret-color: var(--vp-c-text-1);
+    }
+
+    .cm-cursor {
+      border-left-color: var(--vp-c-text-1);
+    }
+
+    .cm-activeLine {
+      background: var(--vp-c-bg-soft);
+    }
+
+    .cm-activeLineGutter {
+      background: var(--vp-c-bg-soft);
+    }
+  }
+
+  .ProseMirror {
+    background: var(--vp-c-bg);
+    color: var(--vp-c-text-1);
+  }
+
+  .prose {
+    color: var(--vp-c-text-1);
+  }
 }
 
 .editor-container {
   animation: editor-fade-in 0.2s ease;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 8px;
+  background: var(--vp-c-bg);
+  overflow: hidden;
 }
 
 @keyframes editor-fade-in {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
-}
-
-html.dark .milkdown .cm-editor {
-  .cm-content { caret-color: var(--vp-c-text-1); }
-  .cm-cursor { border-left-color: var(--vp-c-text-1); }
 }
 
 @media (max-width: 767px) {

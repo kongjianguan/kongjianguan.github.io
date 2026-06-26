@@ -1,6 +1,7 @@
 <script setup lang="ts" name="EditorToolbar">
 defineProps<{
   filePath: string
+  title: string
   isDirty: boolean
   isSaving: boolean
   isLoggedIn: boolean
@@ -17,58 +18,34 @@ const emit = defineEmits<{
 
 <template>
   <div class="editor-toolbar">
-    <span class="toolbar-path">{{ filePath || '(新建文件)' }}</span>
+    <div class="toolbar-left">
+      <span v-if="title" class="toolbar-title">{{ title }}</span>
+      <span class="toolbar-path">{{ filePath || '(新建文件)' }}</span>
+    </div>
 
     <span v-if="!isLoggedIn" class="toolbar-status no-auth">需要登录</span>
     <span v-else-if="isSaving" class="toolbar-status saving">提交中...</span>
     <span v-else-if="isDirty" class="toolbar-status dirty">未保存</span>
-    <span v-else class="toolbar-status clean">已保存</span>
 
     <div class="toolbar-actions">
-      <button
-        class="tb-btn"
-        :disabled="!isLoggedIn || !isDirty"
-        title="保存草稿"
-        @click="emit('saveDraft')"
-      >
-        <span class="tb-btn-label">保存草稿</span>
-        <svg class="tb-btn-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-          <polyline points="17 21 17 13 7 13 7 21"/>
-          <polyline points="7 3 7 8 15 8"/>
-        </svg>
+      <button class="tb-btn" :disabled="!isLoggedIn || !isDirty" @click="emit('saveDraft')">
+        保存草稿
       </button>
-
-      <button
-        class="tb-btn tb-btn-primary"
-        :disabled="!isLoggedIn || isSaving"
-        title="提交到 GitHub"
-        @click="emit('commit')"
-      >
-        <span class="tb-btn-label">提交</span>
-        <svg class="tb-btn-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="16 3 21 3 21 8"/>
-          <line x1="4" y1="20" x2="21" y2="3"/>
-          <polyline points="21 13 21 19 5 21 3 5 9 3"/>
-        </svg>
+      <button class="tb-btn tb-btn-primary" :disabled="!isLoggedIn || isSaving" @click="emit('commit')">
+        提交
       </button>
-
-      <button
-        class="tb-btn"
-        title="切换预览"
-        @click="emit('togglePreview')"
-      >
-        <svg class="tb-btn-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+      <button class="tb-btn" @click="emit('togglePreview')">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="2"/>
           <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
         </svg>
       </button>
-
-      <button class="tb-btn tb-btn-danger" title="退出编辑" @click="emit('exitEdit')">
-        <svg class="tb-btn-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+      <button class="tb-btn" @click="emit('exitEdit')">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="18" y1="6" x2="6" y2="18"/>
           <line x1="6" y1="6" x2="18" y2="18"/>
         </svg>
+        退出
       </button>
     </div>
   </div>
@@ -78,25 +55,33 @@ const emit = defineEmits<{
 .editor-toolbar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--vp-c-divider);
-  background: var(--vp-c-bg-soft);
-  position: sticky;
-  top: 0;
-  z-index: 10;
+  gap: 12px;
+  padding: 10px 0;
   flex-wrap: wrap;
 }
 
-.toolbar-path {
-  font-size: 12px;
-  color: var(--vp-c-text-2);
-  font-family: monospace;
+.toolbar-left {
   flex: 1;
   min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toolbar-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--vp-c-text-1);
+  white-space: nowrap;
+}
+
+.toolbar-path {
+  font-size: 11px;
+  color: var(--vp-c-text-3);
+  font-family: monospace;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .toolbar-status {
@@ -106,58 +91,52 @@ const emit = defineEmits<{
   white-space: nowrap;
 }
 
-.toolbar-status.clean { color: var(--vp-c-green); background: var(--vp-c-green-soft); }
-.toolbar-status.dirty { color: var(--vp-c-yellow); background: var(--vp-c-yellow-soft); }
-.toolbar-status.saving { color: var(--vp-c-brand); background: var(--vp-c-brand-soft); }
-.toolbar-status.no-auth { color: var(--vp-c-text-3); background: var(--vp-c-bg-mute); }
+.toolbar-status.dirty { color: var(--vp-c-yellow-1); }
+.toolbar-status.saving { color: var(--vp-c-brand-1); }
+.toolbar-status.no-auth { color: var(--vp-c-text-3); }
 
 .toolbar-actions {
   display: flex;
-  gap: 4px;
+  align-items: center;
+  gap: 2px;
 }
 
 .tb-btn {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  border: 1px solid var(--vp-c-divider);
+  gap: 3px;
+  padding: 2px 6px;
+  border: none;
   border-radius: 4px;
-  background: var(--vp-c-bg);
+  background: none;
   color: var(--vp-c-text-2);
   cursor: pointer;
   font-size: 12px;
-  white-space: nowrap;
+  line-height: 20px;
+  transition: color 0.15s, background 0.15s;
 }
 
 .tb-btn:hover:not(:disabled) {
-  background: var(--vp-c-bg-mute);
+  color: var(--vp-c-text-1);
+  background: var(--vp-c-bg-soft);
 }
 
 .tb-btn:disabled {
-  opacity: 0.4;
+  opacity: 0.3;
   cursor: not-allowed;
 }
 
 .tb-btn-primary {
-  background: var(--vp-c-brand);
-  color: #fff;
-  border-color: var(--vp-c-brand);
+  color: var(--vp-c-brand-1);
 }
 
 .tb-btn-primary:hover:not(:disabled) {
-  background: var(--vp-c-brand-dark);
-}
-
-.tb-btn-danger:hover:not(:disabled) {
-  color: var(--vp-c-red);
-  border-color: var(--vp-c-red);
+  color: var(--vp-c-brand-2);
+  background: var(--vp-c-brand-soft);
 }
 
 @media (max-width: 767px) {
-  .toolbar-path { display: none; }
-  .tb-btn { padding: 6px; }
-  .tb-btn-label { display: none; }
-  .tb-btn-icon { width: 18px; height: 18px; }
+  .toolbar-title { display: none; }
+  .toolbar-status { display: none; }
 }
 </style>

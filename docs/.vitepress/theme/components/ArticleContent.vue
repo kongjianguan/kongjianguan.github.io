@@ -29,6 +29,10 @@ const editParam = computed(() => {
   return new URLSearchParams(window.location.search).get('edit') === 'true'
 })
 
+const articleTitle = computed(() => {
+  return (frontmatter.value?.title || page.value?.title || '') as string
+})
+
 function getFilePathFromPage(): string {
   return page.value.relativePath || ''
 }
@@ -84,6 +88,7 @@ if (typeof window !== 'undefined') {
   <div v-if="isEditing" class="editor-container">
     <EditorToolbar
       :file-path="filePath"
+      :title="articleTitle"
       :is-dirty="isDirty"
       :is-saving="isSaving"
       :is-logged-in="isLoggedIn.value"
@@ -94,7 +99,7 @@ if (typeof window !== 'undefined') {
       @toggle-preview="() => {}"
     />
 
-    <div v-if="!isLoggedIn.value && isEditing" class="login-banner">
+    <div v-if="!isLoggedIn.value" class="login-banner">
       <LoginButton />
       <span>登录后可编辑和提交文章</span>
     </div>
@@ -134,13 +139,12 @@ if (typeof window !== 'undefined') {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 16px;
+  padding: 10px 14px;
   margin-bottom: 12px;
-  border: 1px solid var(--vp-c-warning-soft);
-  border-radius: 8px;
-  background: var(--vp-c-warning-bg);
-  color: var(--vp-c-warning);
+  border-radius: 6px;
+  background: var(--vp-c-bg-soft);
   font-size: 13px;
+  color: var(--vp-c-text-2);
 }
 
 @media (max-width: 767px) {
