@@ -195,7 +195,7 @@ function createEditor() {
   const extensions = [
     basicSetup,
     markdown(),
-    syntaxHighlighting(editorHighlightStyle, { fallback: true }),
+    syntaxHighlighting(editorHighlightStyle),
     updateListener,
     livePreviewPlugin,
     EditorView.theme({
