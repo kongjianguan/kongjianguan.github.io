@@ -272,60 +272,86 @@ watch(
   background: var(--vp-c-brand-soft);
 }
 
-/* Line-level styling via Decoration.line classes */
+/* Line-level styling — matches vp-doc article styles */
 .cm-editor-container :deep(.cm-md-h1) {
-  font-size: 1.6em;
-  font-weight: 700;
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 40px;
   color: var(--vp-c-text-1);
 }
 .cm-editor-container :deep(.cm-md-h2) {
-  font-size: 1.4em;
-  font-weight: 700;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 32px;
+  border-top: 1px solid var(--vp-c-divider);
+  padding-top: 24px;
+  margin: 48px 0 16px;
   color: var(--vp-c-text-1);
 }
 .cm-editor-container :deep(.cm-md-h3) {
-  font-size: 1.2em;
+  font-size: 20px;
   font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 28px;
+  margin: 32px 0 0;
   color: var(--vp-c-text-1);
 }
 .cm-editor-container :deep(.cm-md-h4) {
-  font-size: 1.1em;
+  font-size: 18px;
   font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 24px;
+  margin: 24px 0 0;
   color: var(--vp-c-text-1);
 }
 .cm-editor-container :deep(.cm-md-h5) {
-  font-size: 1em;
+  font-size: 16px;
   font-weight: 600;
+  line-height: 24px;
   color: var(--vp-c-text-1);
 }
 .cm-editor-container :deep(.cm-md-h6) {
-  font-size: 0.9em;
+  font-size: 15px;
   font-weight: 600;
+  line-height: 24px;
   color: var(--vp-c-text-2);
 }
 .cm-editor-container :deep(.cm-md-quote) {
   color: var(--vp-c-text-2);
-  border-left: 3px solid var(--vp-c-brand);
-  padding-left: 12px;
+  border-left: 2px solid var(--vp-c-divider);
+  padding-left: 16px;
+  transition: border-color 0.5s;
 }
 .cm-editor-container :deep(.cm-md-list) {
-  padding-left: 1.5em;
+  padding-left: 1.25rem;
   color: var(--vp-c-text-1);
 }
 .cm-editor-container :deep(.cm-md-hr) {
+  margin: 16px 0;
   border-top: 1px solid var(--vp-c-divider);
 }
 .cm-editor-container :deep(.cm-md-p) {
+  line-height: 28px;
+  margin: 16px 0;
   color: var(--vp-c-text-1);
 }
 
-/* Widget content (rendered inline HTML) */
+@media (min-width: 768px) {
+  .cm-editor-container :deep(.cm-md-h1) {
+    font-size: 32px;
+    line-height: 40px;
+  }
+}
+
+/* Widget content (rendered inline HTML) — matches vp-doc inline styles */
 .cm-rendered-line {
   display: inline;
 }
 
 .cm-rendered-line :deep(strong) {
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .cm-rendered-line :deep(em) {
@@ -337,16 +363,20 @@ watch(
 }
 
 .cm-rendered-line :deep(code) {
-  background: var(--vp-c-bg-soft);
-  padding: 1px 5px;
-  border-radius: 3px;
-  font-size: 0.9em;
+  font-size: var(--vp-code-font-size);
+  color: var(--vp-code-color);
+  background-color: var(--vp-code-bg);
+  border-radius: 4px;
+  padding: 3px 6px;
   font-family: var(--vp-font-family-mono);
+  transition: color 0.25s, background-color 0.5s;
 }
 
 .cm-rendered-line :deep(a) {
-  color: var(--vp-c-brand);
+  font-weight: 500;
+  color: var(--vp-c-brand-1);
   text-decoration: underline;
+  text-underline-offset: 2px;
   pointer-events: none;
 }
 
@@ -358,9 +388,9 @@ watch(
 }
 
 .cm-rendered-line :deep(hr) {
+  margin: 16px 0;
   border: none;
   border-top: 1px solid var(--vp-c-divider);
-  margin: 0;
 }
 
 @media (max-width: 767px) {
