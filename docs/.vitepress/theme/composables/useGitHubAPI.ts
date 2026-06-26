@@ -22,6 +22,34 @@ export function useGitHubAPI() {
     return token.value
   }
 
+  const ARTICLE_DIRS = ['programming', 'Software', '历程', '@pages']
+
+  function validatePath(path: string): void {
+    if (path.includes('..')) throw new Error('非法路径：禁止目录穿越')
+    if (/[\u0000-\u001f]/.test(path)) throw new Error('非法路径：包含控制字符')
+
+    const dangerous = [
+      /^\.github\//, /^\.vitepress\//, /^api\//,
+      /^package(-lock)?\.json$/, /^pnpm-lock/, /^vercel\.json$/,
+      /^\.env/, /^docs\/\.vitepress\//
+    ]
+    if (dangerous.some(re => re.test(path))) {
+      throw new Error('非法路径：受保护位置')
+    }
+
+    const isArticle = path.endsWith('.md') && (
+      ARTICLE_DIRS.some(dir => path.startsWith(`docs/${dir}/`)) ||
+      path === 'docs/index.md' ||
+      /^docs\/[^/]+\.md$/.test(path)
+    )
+    const isImage = path.startsWith('docs/public/images/') &&
+      /\.(png|jpe?g|gif|webp)$/i.test(path)
+
+    if (!isArticle && !isImage) {
+      throw new Error('非法路径：不在允许的文章或图片目录内')
+    }
+  }
+
   async function readFile(path: string): Promise<{ content: string; sha: string } | null> {
     const t = requireToken()
     const url = `${API_BASE}/repos/${REPO_OWNER}/${REPO_NAME}/contents/${path}?ref=${BRANCH}`
@@ -30,12 +58,15 @@ export function useGitHubAPI() {
     if (!res.ok) throw new Error(`GitHub API error: ${res.status}`)
     const data = await res.json()
     return {
-      content: atob(data.content),
+      content: new TextDecoder('utf-8').decode(
+        Uint8Array.from(atob(data.content), c => c.charCodeAt(0))
+      ),
       sha: data.sha
     }
   }
 
   async function createFile(path: string, content: string, message: string): Promise<boolean> {
+    validatePath(path)
     const t = requireToken()
     const url = `${API_BASE}/repos/${REPO_OWNER}/${REPO_NAME}/contents/${path}`
     const body = {
@@ -52,6 +83,7 @@ export function useGitHubAPI() {
   }
 
   async function updateFile(path: string, content: string, sha: string, message: string): Promise<{ sha: string } | null> {
+    validatePath(path)
     const t = requireToken()
     const url = `${API_BASE}/repos/${REPO_OWNER}/${REPO_NAME}/contents/${path}`
     const body = {
@@ -77,11 +109,13 @@ export function useGitHubAPI() {
       throw new Error('Image too large (max 5MB)')
     }
 
-    const ext = file.name.split('.').pop() || 'png'
+    const rawExt = (file.name.split('.').pop() || '').toLowerCase()
+    const ext = ['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(rawExt) ? rawExt : 'png'
     const timestamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14)
     const random = Math.random().toString(36).slice(2, 8)
     const filename = `${timestamp}-${random}.${ext}`
     const path = `docs/public/images/${filename}`
+    validatePath(path)
 
     return new Promise((resolve, reject) => {
       const reader = new FileReader()

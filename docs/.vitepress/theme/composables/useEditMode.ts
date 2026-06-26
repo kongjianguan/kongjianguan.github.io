@@ -161,6 +161,10 @@ export function useEditMode() {
   }
 
   async function commit(message: string): Promise<boolean> {
+    if (!isNewFile.value && !isDirty.value) {
+      saveError.value = '内容未修改'
+      return false
+    }
     isSaving.value = true
     saveError.value = null
     try {
