@@ -10,10 +10,28 @@ import {
 } from '@codemirror/view'
 import { EditorState, RangeSetBuilder } from '@codemirror/state'
 import { markdown } from '@codemirror/lang-markdown'
+import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
+import { tags as t } from '@lezer/highlight'
 import { basicSetup } from 'codemirror'
 import MarkdownIt from 'markdown-it'
 
 const md = MarkdownIt({ html: false, breaks: true, linkify: true })
+
+const editorHighlightStyle = HighlightStyle.define([
+  { tag: t.link, color: 'var(--vp-c-brand-1)', textDecoration: 'underline' },
+  { tag: t.url, color: 'var(--vp-c-text-2)' },
+  { tag: t.heading, fontWeight: '600' },
+  { tag: t.strong, fontWeight: '700' },
+  { tag: t.emphasis, fontStyle: 'italic' },
+  { tag: t.strikethrough, textDecoration: 'line-through' },
+  { tag: t.keyword, color: 'var(--vp-c-brand-1)' },
+  { tag: [t.atom, t.bool, t.contentSeparator, t.labelName], color: 'var(--vp-c-text-2)' },
+  { tag: [t.literal, t.inserted], color: 'var(--vp-c-text-2)' },
+  { tag: [t.string, t.deleted], color: 'var(--vp-c-text-2)' },
+  { tag: [t.regexp, t.escape], color: 'var(--vp-c-text-2)' },
+  { tag: t.comment, color: 'var(--vp-c-text-3)', fontStyle: 'italic' },
+  { tag: t.meta, color: 'var(--vp-c-text-3)' },
+])
 
 const props = defineProps<{
   modelValue: string
@@ -177,6 +195,7 @@ function createEditor() {
   const extensions = [
     basicSetup,
     markdown(),
+    syntaxHighlighting(editorHighlightStyle, { fallback: true }),
     updateListener,
     livePreviewPlugin,
     EditorView.theme({
@@ -270,24 +289,6 @@ watch(
 
 .cm-editor-container :deep(.cm-editor .cm-selectionMatch) {
   background: var(--vp-c-brand-soft);
-}
-
-/* Override CodeMirror syntax highlight colors for markdown */
-.cm-editor-container :deep(.cm-editor .cm-link) {
-  color: var(--vp-c-brand-1);
-  text-decoration: underline;
-}
-.cm-editor-container :deep(.cm-editor .cm-url) {
-  color: var(--vp-c-text-2);
-}
-.cm-editor-container :deep(.cm-editor .cm-heading) {
-  color: var(--vp-c-text-1);
-}
-.cm-editor-container :deep(.cm-editor .cm-strong) {
-  font-weight: 700;
-}
-.cm-editor-container :deep(.cm-editor .cm-emphasis) {
-  font-style: italic;
 }
 
 /* Article-like max-width for the rendered lines */
