@@ -7,11 +7,25 @@ import LoginButton from "./LoginButton.vue";
 import NewArticleDialog from "./NewArticleDialog.vue";
 
 import { ref, onMounted } from 'vue';
-import { withBase } from 'vitepress';
+import { withBase, useRouter } from 'vitepress';
+import { useGitHubAuth } from '../composables/useGitHubAuth';
 
 const showNewDialog = ref(false);
+const router = useRouter();
 
 onMounted(async () => {
+  const { pathname, search } = window.location;
+  if (pathname === '/__auth/callback' && new URLSearchParams(search).get('code')) {
+    const { handleCallback } = useGitHubAuth();
+    try {
+      await handleCallback();
+    } catch (e) {
+      console.error('OAuth callback error:', e);
+    }
+    router.go('/');
+    return;
+  }
+
   const { loadOml2d } = await import('oh-my-live2d');
   loadOml2d({
     dockedPosition: 'left',
