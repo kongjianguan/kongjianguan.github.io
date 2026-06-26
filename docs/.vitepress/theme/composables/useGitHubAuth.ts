@@ -32,7 +32,9 @@ async function generateCodeChallenge(verifier: string): Promise<string> {
 
 const isLoggedIn = ref(false)
 const user = ref<GitHubUser | null>(null)
-const token = ref<string | null>(localStorage.getItem('github_token'))
+const token = ref<string | null>(
+  typeof window !== 'undefined' ? localStorage.getItem('github_token') : null
+)
 
 async function verifyToken(t: string): Promise<boolean> {
   try {

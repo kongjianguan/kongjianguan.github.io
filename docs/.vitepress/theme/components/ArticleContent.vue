@@ -1,6 +1,6 @@
 <script setup lang="ts" name="ArticleContent">
 import { ref, watch, onMounted, computed } from 'vue'
-import { useRoute, useRouter, useData, usePage } from 'vitepress'
+import { useRoute, useRouter, useData } from 'vitepress'
 import { useGitHubAuth } from '../composables/useGitHubAuth'
 import { useEditMode } from '../composables/useEditMode'
 import EditorToolbar from './EditorToolbar.vue'
@@ -13,7 +13,7 @@ const MilkdownEditor = defineAsyncComponent(() => import('./MilkdownEditor.vue')
 
 const route = useRoute()
 const router = useRouter()
-const page = usePage()
+const { page } = useData()
 const { isLoggedIn } = useGitHubAuth()
 const {
   isEditing, filePath, content, frontmatter, remoteSha,

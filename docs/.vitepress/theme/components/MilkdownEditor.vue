@@ -17,8 +17,8 @@ let initFailed = false
 onMounted(async () => {
   try {
     const { Crepe: CrepeClass } = await import('@milkdown/crepe')
-    await import('@milkdown/crepe/lib/theme/crepe/style.css')
-    await import('@milkdown/crepe/lib/theme/common/style.css')
+    await import('@milkdown/crepe/theme/classic.css')
+    await import('@milkdown/crepe/theme/common/style.css')
 
     if (!editorRef.value) return
 
