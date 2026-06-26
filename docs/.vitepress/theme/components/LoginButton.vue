@@ -1,20 +1,54 @@
 <script setup lang="ts" name="LoginButton">
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useGitHubAuth } from '../composables/useGitHubAuth'
 
 const { isLoggedIn, user, login, logout } = useGitHubAuth()
+const menuOpen = ref(false)
+const wrapperRef = ref<HTMLElement | null>(null)
+
+function toggleMenu() {
+  menuOpen.value = !menuOpen.value
+}
+
+function handleLogout() {
+  menuOpen.value = false
+  logout()
+}
+
+function handleClickOutside(e: MouseEvent) {
+  if (wrapperRef.value && !wrapperRef.value.contains(e.target as Node)) {
+    menuOpen.value = false
+  }
+}
+
+onMounted(() => document.addEventListener('click', handleClickOutside))
+onBeforeUnmount(() => document.removeEventListener('click', handleClickOutside))
 </script>
 
 <template>
-  <div class="login-btn-wrapper">
-    <button
-      v-if="isLoggedIn && user"
-      class="login-btn logged-in"
-      title="点击退出登录"
-      @click="logout"
-    >
-      <img :src="user.avatar_url" :alt="user.login" class="avatar" />
-      <span class="username">{{ user.login }}</span>
-    </button>
+  <div class="login-btn-wrapper" ref="wrapperRef">
+    <template v-if="isLoggedIn && user">
+      <button
+        class="login-btn logged-in"
+        :title="user.login"
+        @click="toggleMenu"
+      >
+        <img :src="user.avatar_url" :alt="user.login" class="avatar" />
+        <span class="username">{{ user.login }}</span>
+      </button>
+      <Transition name="user-menu">
+        <div v-if="menuOpen" class="user-menu">
+          <button class="user-menu-item" @click="handleLogout">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+              <polyline points="16 17 21 12 16 7"/>
+              <line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+            退出登录
+          </button>
+        </div>
+      </Transition>
+    </template>
     <button
       v-else
       class="login-btn login-prompt"
@@ -32,6 +66,7 @@ const { isLoggedIn, user, login, logout } = useGitHubAuth()
 .login-btn-wrapper {
   display: flex;
   align-items: center;
+  position: relative;
 }
 
 .login-btn {
@@ -61,5 +96,50 @@ const { isLoggedIn, user, login, logout } = useGitHubAuth()
 
 .gh-icon {
   flex-shrink: 0;
+}
+
+.user-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  min-width: 120px;
+  border-radius: 8px;
+  border: 1px solid var(--vp-c-divider);
+  background: var(--vp-c-bg);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  padding: 4px;
+  z-index: 100;
+}
+
+.user-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  background: none;
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--vp-c-text-1);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.user-menu-item:hover {
+  background: var(--vp-c-bg-soft);
+  color: var(--vp-c-brand-1);
+}
+
+.user-menu-enter-active,
+.user-menu-leave-active {
+  transition: opacity 0.15s, transform 0.15s;
+}
+
+.user-menu-enter-from,
+.user-menu-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
 }
 </style>

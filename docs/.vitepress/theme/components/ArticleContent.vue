@@ -39,7 +39,8 @@ function getFilePathFromPage(): string {
 
 watch(editParam, async (editing) => {
   if (editing) {
-    const path = getFilePathFromPage() || 'index.md'
+    const rel = getFilePathFromPage()
+    const path = rel ? `docs/${rel}` : 'docs/index.md'
     await initEditor(path, '')
     const vpDoc = document.querySelector('.vp-doc')
     if (vpDoc) vpDoc.classList.add('edit-mode-hidden')
