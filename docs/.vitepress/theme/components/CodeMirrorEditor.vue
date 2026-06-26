@@ -272,22 +272,34 @@ watch(
   background: var(--vp-c-brand-soft);
 }
 
+/* Article-like max-width for the rendered lines */
+.cm-editor-container :deep(.cm-editor .cm-content) {
+  max-width: 744px;
+}
+
 /* Line-level styling — matches vp-doc article styles */
 .cm-editor-container :deep(.cm-md-h1) {
   font-size: 28px;
   font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 40px;
-  color: var(--vp-c-text-1);
+  background: linear-gradient(
+    114.2deg,
+    rgba(184, 215, 21, 1) -15.3%,
+    rgba(148, 187, 233, 1) 14.5%,
+    rgba(21, 215, 182, 1) 38.7%,
+    rgba(129, 189, 240, 1) 58.8%,
+    rgba(240, 129, 129, 1) 88.5%
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 .cm-editor-container :deep(.cm-md-h2) {
   font-size: 24px;
   font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 32px;
-  border-top: 1px solid var(--vp-c-divider);
-  padding-top: 24px;
-  margin: 48px 0 16px;
   color: var(--vp-c-text-1);
 }
 .cm-editor-container :deep(.cm-md-h3) {
@@ -295,7 +307,6 @@ watch(
   font-weight: 600;
   letter-spacing: -0.01em;
   line-height: 28px;
-  margin: 32px 0 0;
   color: var(--vp-c-text-1);
 }
 .cm-editor-container :deep(.cm-md-h4) {
@@ -303,7 +314,6 @@ watch(
   font-weight: 600;
   letter-spacing: -0.01em;
   line-height: 24px;
-  margin: 24px 0 0;
   color: var(--vp-c-text-1);
 }
 .cm-editor-container :deep(.cm-md-h5) {
@@ -329,12 +339,10 @@ watch(
   color: var(--vp-c-text-1);
 }
 .cm-editor-container :deep(.cm-md-hr) {
-  margin: 16px 0;
   border-top: 1px solid var(--vp-c-divider);
 }
 .cm-editor-container :deep(.cm-md-p) {
   line-height: 28px;
-  margin: 16px 0;
   color: var(--vp-c-text-1);
 }
 
