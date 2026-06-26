@@ -2,10 +2,15 @@
 import Teek from "vitepress-theme-teek";
 import ContributeChart from "./ContributeChart.vue";
 import NotFound from "./404.vue";
+import ArticleContent from "./ArticleContent.vue";
+import LoginButton from "./LoginButton.vue";
+import NewArticleDialog from "./NewArticleDialog.vue";
 
-// 看板娘配置
-import { onMounted } from 'vue';
+import { ref, onMounted } from 'vue';
 import { withBase } from 'vitepress';
+
+const showNewDialog = ref(false);
+
 onMounted(async () => {
   const { loadOml2d } = await import('oh-my-live2d');
   loadOml2d({
@@ -44,6 +49,20 @@ onMounted(async () => {
 
 <template>
   <Teek.Layout>
+    <template #nav-bar-content-after>
+      <LoginButton />
+      <button class="new-article-btn" @click="showNewDialog = true" title="新建文章">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="12" y1="5" x2="12" y2="19"/>
+          <line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+      </button>
+    </template>
+
+    <template #doc-before>
+      <ArticleContent />
+    </template>
+
     <template #teek-archives-top-before>
       <ContributeChart />
     </template>
@@ -53,6 +72,8 @@ onMounted(async () => {
     </template>
 
   </Teek.Layout>
+
+  <NewArticleDialog v-model:visible="showNewDialog" />
 </template>
 
 <style lang="scss">
@@ -62,5 +83,22 @@ onMounted(async () => {
   .tk-my__avatar.circle-rotate {
     margin-top: 200px;
   }
+}
+
+.new-article-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--vp-c-divider);
+  background: var(--vp-c-bg-soft);
+  color: var(--vp-c-text-1);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.new-article-btn:hover {
+  background: var(--vp-c-bg-mute);
 }
 </style>
