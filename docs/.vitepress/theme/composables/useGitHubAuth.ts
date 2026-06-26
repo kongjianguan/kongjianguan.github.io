@@ -37,12 +37,6 @@ const token = ref<string | null>(
   typeof window !== 'undefined' ? localStorage.getItem('github_token') : null
 )
 
-if (typeof window !== 'undefined' && LOCAL_EDIT) {
-  isLoggedIn.value = true
-  user.value = { login: 'local-dev', avatar_url: '' }
-  token.value = token.value || 'local-dev-token'
-}
-
 async function verifyToken(t: string): Promise<boolean> {
   try {
     const res = await fetch('https://api.github.com/user', {
@@ -59,6 +53,12 @@ async function verifyToken(t: string): Promise<boolean> {
 }
 
 export function useGitHubAuth() {
+  if (typeof window !== 'undefined' && LOCAL_EDIT && !isLoggedIn.value) {
+    isLoggedIn.value = true
+    user.value = { login: 'local-dev', avatar_url: '' }
+    token.value = token.value || 'local-dev-token'
+  }
+
   if (token.value && !isLoggedIn.value) {
     verifyToken(token.value).then(valid => {
       if (!valid) { token.value = null; localStorage.removeItem('github_token') }

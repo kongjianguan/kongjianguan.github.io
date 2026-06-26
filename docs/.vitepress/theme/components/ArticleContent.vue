@@ -138,12 +138,12 @@ if (typeof window !== 'undefined') {
 .login-banner {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 14px;
-  margin-bottom: 12px;
-  border-radius: 6px;
+  gap: 8px;
+  padding: 5px 10px;
+  margin-bottom: 10px;
+  border-radius: 4px;
   background: var(--vp-c-bg-soft);
-  font-size: 13px;
+  font-size: 12px;
   color: var(--vp-c-text-2);
 }
 
