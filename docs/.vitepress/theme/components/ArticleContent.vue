@@ -9,7 +9,7 @@ import CommitDialog from './CommitDialog.vue'
 import LoginButton from './LoginButton.vue'
 import { defineAsyncComponent } from 'vue'
 
-const MilkdownEditor = defineAsyncComponent(() => import('./MilkdownEditor.vue'))
+const CodeMirrorEditor = defineAsyncComponent(() => import('./CodeMirrorEditor.vue'))
 
 const route = useRoute()
 const router = useRouter()
@@ -111,7 +111,7 @@ if (typeof window !== 'undefined') {
       v-model:collapsed="fmCollapsed"
     />
 
-    <MilkdownEditor
+    <CodeMirrorEditor
       :model-value="content"
       @update:model-value="updateContent"
     />

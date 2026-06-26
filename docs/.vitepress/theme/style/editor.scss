@@ -1,64 +1,8 @@
-// Milkdown Crepe theme overrides — use higher specificity to beat dynamically-loaded Crepe CSS
-.editor-container .milkdown {
-  --crepe-color-background: var(--vp-c-bg);
-  --crepe-color-on-background: var(--vp-c-text-1);
-  --crepe-color-surface: var(--vp-c-bg-soft);
-  --crepe-color-surface-low: var(--vp-c-bg-alt);
-  --crepe-color-on-surface: var(--vp-c-text-1);
-  --crepe-color-on-surface-variant: var(--vp-c-text-2);
-  --crepe-color-outline: var(--vp-c-divider);
-  --crepe-color-primary: var(--vp-c-brand);
-  --crepe-color-secondary: var(--vp-c-brand-soft);
-  --crepe-color-on-secondary: var(--vp-c-brand);
-  --crepe-color-inverse: var(--vp-c-text-1);
-  --crepe-color-on-inverse: var(--vp-c-bg);
-  --crepe-color-inline-code: var(--vp-c-brand);
-  --crepe-color-error: var(--vp-c-danger);
-  --crepe-color-hover: var(--vp-c-bg-mute);
-  --crepe-color-selected: var(--vp-c-bg-soft);
-  --crepe-color-inline-area: var(--vp-c-bg-alt);
-  --crepe-color-shadow: var(--vp-c-shadow);
-
-  font-family: var(--vp-font-family-base);
-  caret-color: var(--vp-c-text-1);
-
-  .cm-editor {
-    background: var(--vp-c-bg);
-    color: var(--vp-c-text-1);
-
-    .cm-content {
-      caret-color: var(--vp-c-text-1);
-    }
-
-    .cm-cursor {
-      border-left-color: var(--vp-c-text-1) !important;
-    }
-
-    .cm-activeLine {
-      background: var(--vp-c-bg-soft);
-    }
-
-    .cm-activeLineGutter {
-      background: var(--vp-c-bg-soft);
-    }
-  }
-
-  .ProseMirror {
-    background: var(--vp-c-bg);
-    color: var(--vp-c-text-1);
-    caret-color: var(--vp-c-text-1);
-  }
-
-  .prose {
-    color: var(--vp-c-text-1);
-  }
-}
-
 .editor-container {
   animation: editor-fade-in 0.2s ease;
+  background: var(--vp-c-bg);
   border: 1px solid var(--vp-c-divider);
   border-radius: 8px;
-  background: var(--vp-c-bg);
   overflow: hidden;
 }
 
