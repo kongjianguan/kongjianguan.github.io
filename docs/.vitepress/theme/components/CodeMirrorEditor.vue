@@ -58,7 +58,11 @@ class RenderedLineWidget extends WidgetType {
     span.innerHTML = this.html
     span.addEventListener('mousedown', (e) => {
       e.preventDefault()
-      view.dispatch({ selection: { anchor: this.pos }, scrollIntoView: true })
+      view.dispatch({
+        selection: { anchor: this.pos },
+        scrollIntoView: true,
+      })
+      view.focus()
     })
     return span
   }
@@ -109,75 +113,99 @@ function renderLineContent(
   return { html: content, className: 'cm-md-p' }
 }
 
+function buildDecorationsFor(view: EditorView, skipLine: number | null): DecorationSet {
+  const builder = new RangeSetBuilder<Decoration>()
+  const doc = view.state.doc
+
+  let inCodeBlock = false
+  let inFrontmatter = false
+  let checkedFrontmatterStart = false
+
+  for (let lineNum = 1; lineNum <= doc.lines; lineNum++) {
+    const line = doc.line(lineNum)
+    const text = line.text
+    const trimmed = text.trim()
+
+    if (!checkedFrontmatterStart && lineNum === 1 && trimmed === '---') {
+      inFrontmatter = true
+      checkedFrontmatterStart = true
+      continue
+    }
+    checkedFrontmatterStart = true
+
+    if (inFrontmatter) {
+      if (trimmed === '---') inFrontmatter = false
+      continue
+    }
+
+    if (/^```/.test(trimmed)) {
+      inCodeBlock = !inCodeBlock
+      continue
+    }
+
+    if (inCodeBlock) continue
+    if (skipLine !== null && lineNum === skipLine) continue
+
+    const result = renderLineContent(text)
+    if (!result) continue
+
+    builder.add(
+      line.from,
+      line.from,
+      Decoration.line({ class: result.className }),
+    )
+
+    if (line.from < line.to) {
+      builder.add(
+        line.from,
+        line.to,
+        Decoration.replace({
+          widget: new RenderedLineWidget(result.html, line.from),
+        }),
+      )
+    }
+  }
+
+  return builder.finish()
+}
+
 const livePreviewPlugin = ViewPlugin.fromClass(
   class {
     decorations: DecorationSet
+    skipLine: number | null = null
+    focused: boolean = false
 
     constructor(view: EditorView) {
-      this.decorations = this.buildDecorations(view)
+      this.decorations = this.build(view)
+    }
+
+    build(view: EditorView): DecorationSet {
+      const skip = this.focused ? this.skipLine : null
+      return buildDecorationsFor(view, skip)
     }
 
     update(update: ViewUpdate) {
-      if (update.docChanged || update.selectionSet || update.viewportChanged) {
-        this.decorations = this.buildDecorations(update.view)
-      }
-    }
-
-    buildDecorations(view: EditorView): DecorationSet {
-      const builder = new RangeSetBuilder<Decoration>()
-      const doc = view.state.doc
-      const cursorLine = doc.lineAt(view.state.selection.main.head).number
-
-      let inCodeBlock = false
-      let inFrontmatter = false
-      let checkedFrontmatterStart = false
-
-      for (let lineNum = 1; lineNum <= doc.lines; lineNum++) {
-        const line = doc.line(lineNum)
-        const text = line.text
-        const trimmed = text.trim()
-
-        if (!checkedFrontmatterStart && lineNum === 1 && trimmed === '---') {
-          inFrontmatter = true
-          checkedFrontmatterStart = true
-          continue
-        }
-        checkedFrontmatterStart = true
-
-        if (inFrontmatter) {
-          if (trimmed === '---') inFrontmatter = false
-          continue
-        }
-
-        if (/^```/.test(trimmed)) {
-          inCodeBlock = !inCodeBlock
-          continue
-        }
-
-        if (inCodeBlock) continue
-        if (lineNum === cursorLine) continue
-
-        const result = renderLineContent(text)
-        if (!result) continue
-
-        builder.add(
-          line.from,
-          line.from,
-          Decoration.line({ class: result.className }),
-        )
-
-        if (line.from < line.to) {
-          builder.add(
-            line.from,
-            line.to,
-            Decoration.replace({
-              widget: new RenderedLineWidget(result.html, line.from),
-            }),
-          )
+      let changed = false
+      if (update.focusChanged) {
+        const nowFocused = update.view.hasFocus
+        if (nowFocused !== this.focused) {
+          this.focused = nowFocused
+          if (!nowFocused) this.skipLine = null
+          changed = true
         }
       }
-
-      return builder.finish()
+      if (update.selectionSet) {
+        const head = update.view.state.selection.main.head
+        const ln = update.view.state.doc.lineAt(head).number
+        if (this.focused && ln !== this.skipLine) {
+          this.skipLine = ln
+          changed = true
+        }
+      }
+      if (update.docChanged || update.viewportChanged) {
+        changed = true
+      }
+      if (changed) this.decorations = this.build(update.view)
     }
   },
   { decorations: (v) => v.decorations },
@@ -201,13 +229,16 @@ function createEditor() {
     EditorView.theme({
       '&': {
         height: '100%',
-        fontSize: '14px',
+        fontSize: '16px',
       },
       '.cm-scroller': {
         lineHeight: '1.7',
+        fontFamily: 'var(--vp-font-family-base)',
       },
       '.cm-content': {
         padding: '8px 4px',
+        maxWidth: '744px',
+        margin: '0 auto',
       },
       '.cm-line': {
         padding: '0 8px',
@@ -266,21 +297,19 @@ watch(
 }
 
 .cm-editor-container :deep(.cm-editor .cm-gutters) {
-  background: var(--vp-c-bg);
-  color: var(--vp-c-text-3);
-  border-right: 1px solid var(--vp-c-divider);
+  display: none;
 }
 
-.cm-editor-container :deep(.cm-editor .cm-activeLineGutter) {
-  background: var(--vp-c-bg-soft);
-}
-
-.cm-editor-container :deep(.cm-editor .cm-activeLine) {
-  background: var(--vp-c-bg-soft);
+.cm-editor-container :deep(.cm-editor .cm-content) {
+  caret-color: var(--vp-c-brand-1);
 }
 
 .cm-editor-container :deep(.cm-editor .cm-cursor) {
-  border-left-color: var(--vp-c-text-1) !important;
+  border-left-color: var(--vp-c-brand-1) !important;
+}
+
+.cm-editor-container :deep(.cm-editor .cm-activeLine) {
+  background: transparent;
 }
 
 .cm-editor-container :deep(.cm-editor .cm-selectionBackground) {
@@ -291,12 +320,10 @@ watch(
   background: var(--vp-c-brand-soft);
 }
 
-/* Article-like max-width for the rendered lines */
 .cm-editor-container :deep(.cm-editor .cm-content) {
   max-width: 744px;
 }
 
-/* Line-level styling — matches vp-doc article styles */
 .cm-editor-container :deep(.cm-md-h1) {
   font-size: 28px;
   font-weight: 600;
@@ -372,7 +399,6 @@ watch(
   }
 }
 
-/* Widget content (rendered inline HTML) — matches vp-doc inline styles */
 .cm-rendered-line {
   display: inline;
 }

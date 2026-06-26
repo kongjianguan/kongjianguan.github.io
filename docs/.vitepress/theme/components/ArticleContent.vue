@@ -1,5 +1,5 @@
 <script setup lang="ts" name="ArticleContent">
-import { ref, watch, onMounted, computed } from 'vue'
+import { ref, watch, onMounted, computed, nextTick } from 'vue'
 import { useRoute, useRouter, useData } from 'vitepress'
 import { useGitHubAuth } from '../composables/useGitHubAuth'
 import { useEditMode } from '../composables/useEditMode'
@@ -34,28 +34,36 @@ const articleTitle = computed(() => {
 })
 
 function getFilePathFromPage(): string {
-  return page.value.relativePath || ''
+  const fp = (page.value as any).filePath
+  if (fp) return `docs/${fp}`
+  const rel = page.value.relativePath
+  return rel ? `docs/${rel}` : ''
 }
 
 watch(editParam, async (editing) => {
   if (editing) {
-    const rel = getFilePathFromPage()
-    const path = rel ? `docs/${rel}` : 'docs/index.md'
+    const path = getFilePathFromPage() || 'docs/index.md'
     await initEditor(path, '')
-    const vpDoc = document.querySelector('.vp-doc')
-    if (vpDoc) vpDoc.classList.add('edit-mode-hidden')
   } else {
     isEditing.value = false
-    const vpDoc = document.querySelector('.vp-doc')
-    if (vpDoc) vpDoc.classList.remove('edit-mode-hidden')
   }
 }, { immediate: true })
+
+watch(isEditing, (editing) => {
+  document.querySelectorAll('.vp-doc').forEach(el => {
+    el.classList.toggle('edit-mode-hidden', editing)
+  })
+})
 
 onMounted(async () => {
   const urlParams = new URLSearchParams(window.location.search)
   if (urlParams.has('code')) {
     const { handleCallback } = useGitHubAuth()
     await handleCallback()
+  }
+  if (isEditing.value) {
+    await nextTick()
+    document.querySelectorAll('.vp-doc').forEach(el => el.classList.add('edit-mode-hidden'))
   }
 })
 
@@ -131,7 +139,7 @@ if (typeof window !== 'undefined') {
 }
 
 .editor-container {
-  max-width: 688px;
+  max-width: 744px;
   margin: 0 auto;
   padding: 0 24px 48px;
 }

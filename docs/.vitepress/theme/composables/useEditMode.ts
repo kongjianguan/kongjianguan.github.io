@@ -4,6 +4,18 @@ import { useGitHubAuth } from './useGitHubAuth'
 import { useGitHubAPI } from './useGitHubAPI'
 import { useDrafts } from './useDrafts'
 
+const LOCAL_EDIT = import.meta.env.VITE_LOCALEDIT === '1'
+
+const localMdSources: Record<string, string> = LOCAL_EDIT
+  ? import.meta.glob('/**/*.md', { query: '?raw', import: 'default', eager: true })
+  : {}
+
+function getLocalContent(path: string): string {
+  const normalized = path.startsWith('docs/') ? path.slice(5) : path
+  const key = `/${normalized}`
+  return localMdSources[key] || localMdSources[path] || ''
+}
+
 interface Frontmatter {
   title: string
   date: string
@@ -122,13 +134,9 @@ export function useEditMode() {
     } catch {
       let localContent = fallbackContent || ''
 
-      if (import.meta.env.VITE_LOCALEDIT === '1') {
-        try {
-          const res = await fetch(`/${path}`)
-          if (res.ok) {
-            localContent = await res.text()
-          }
-        } catch {}
+      if (LOCAL_EDIT) {
+        const raw = getLocalContent(path)
+        if (raw) localContent = raw
       }
 
       isNewFile.value = true

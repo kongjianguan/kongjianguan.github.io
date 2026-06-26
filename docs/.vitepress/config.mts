@@ -41,6 +41,7 @@ export default defineConfig({
   },
 
   vite: {
+    envDir: process.cwd(),
     plugins: [
       // 本地搜索
       pagefindPlugin({
