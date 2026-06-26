@@ -1,10 +1,10 @@
 <script setup lang="ts" name="CodeMirrorEditor">
-import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
-import { EditorView, Decoration, WidgetType, ViewPlugin, ViewUpdate, DecorationSet } from '@codemirror/view'
-import { EditorState, RangeSetBuilder } from '@codemirror/state'
+import { ref, onMounted, onBeforeUnmount, watch, computed } from 'vue'
+import { EditorView } from '@codemirror/view'
+import { EditorState } from '@codemirror/state'
 import { markdown } from '@codemirror/lang-markdown'
-import MarkdownIt from 'markdown-it'
 import { basicSetup } from 'codemirror'
+import MarkdownIt from 'markdown-it'
 
 const md = MarkdownIt({ html: false, breaks: true, linkify: true })
 
@@ -17,104 +17,11 @@ const emit = defineEmits<{
 }>()
 
 const editorRef = ref<HTMLDivElement>()
+const previewRef = ref<HTMLDivElement>()
+const showPreview = ref(false)
 let view: EditorView | null = null
 
-class RenderedBlockWidget extends WidgetType {
-  constructor(
-    readonly html: string,
-    readonly blockStart: number,
-    readonly blockEnd: number,
-  ) {
-    super()
-  }
-
-  toDOM(view: EditorView) {
-    const div = document.createElement('div')
-    div.className = 'cm-rendered-block'
-    div.innerHTML = this.html
-    div.addEventListener('dblclick', () => {
-      view.dispatch({
-        selection: { anchor: this.blockStart },
-        scrollIntoView: true
-      })
-    })
-    return div
-  }
-
-  eq(other: RenderedBlockWidget) {
-    return other.html === this.html && other.blockStart === this.blockStart
-  }
-}
-
-function splitBlocks(text: string): { startLine: number; endLine: number }[] {
-  const lines = text.split('\n')
-  const blocks: { startLine: number; endLine: number }[] = []
-  let start = 0
-  for (let i = 0; i < lines.length; i++) {
-    if (lines[i].trim() === '') {
-      if (i > start && lines.slice(start, i).some(l => l.trim() !== '')) {
-        blocks.push({ startLine: start, endLine: i })
-      }
-      start = i + 1
-    }
-  }
-  if (start < lines.length && lines.slice(start).some(l => l.trim() !== '')) {
-    blocks.push({ startLine: start, endLine: lines.length })
-  }
-  return blocks
-}
-
-const livePreviewPlugin = ViewPlugin.fromClass(
-  class {
-    decorations: DecorationSet
-
-    constructor(view: EditorView) {
-      this.decorations = this.buildDecorations(view)
-    }
-
-    update(update: ViewUpdate) {
-      if (update.docChanged || update.selectionSet) {
-        this.decorations = this.buildDecorations(update.view)
-      }
-    }
-
-    buildDecorations(view: EditorView): DecorationSet {
-      const builder = new RangeSetBuilder<Decoration>()
-      const doc = view.state.doc
-      const cursor = view.state.selection.main.head
-
-      const blocks = splitBlocks(doc.toString())
-
-      for (const block of blocks) {
-        const blockStartLine = doc.line(block.startLine + 1)
-        const blockEndLine = doc.line(block.endLine)
-        const blockFrom = blockStartLine.from
-        const blockTo = blockEndLine.to
-
-        if (cursor >= blockFrom && cursor <= blockTo) continue
-
-        const blockText = doc.slice(blockFrom, blockTo).toString()
-        if (!blockText.trim()) continue
-
-        try {
-          const html = md.render(blockText)
-          builder.add(
-            blockFrom, blockTo,
-            Decoration.replace({
-              widget: new RenderedBlockWidget(html, blockFrom, blockTo),
-              inclusive: false,
-            }),
-          )
-        } catch {
-          // ignore render failures
-        }
-      }
-
-      return builder.finish()
-    }
-  },
-  { decorations: (v) => v.decorations },
-)
+const previewHtml = computed(() => md.render(props.modelValue))
 
 function createEditor() {
   if (!editorRef.value) return
@@ -129,7 +36,6 @@ function createEditor() {
     basicSetup,
     markdown(),
     updateListener,
-    livePreviewPlugin,
     EditorView.theme({
       '&': {
         height: '100%',
@@ -156,6 +62,10 @@ function createEditor() {
   })
 }
 
+function togglePreview() {
+  showPreview.value = !showPreview.value
+}
+
 onMounted(() => {
   createEditor()
 })
@@ -179,16 +89,80 @@ watch(
     }
   },
 )
+
+defineExpose({ togglePreview })
 </script>
 
 <template>
-  <div ref="editorRef" class="cm-editor-container" />
+  <div class="cm-editor-container">
+    <div class="editor-mode-tabs">
+      <button
+        class="mode-tab"
+        :class="{ active: !showPreview }"
+        @click="showPreview = false"
+      >
+        编辑
+      </button>
+      <button
+        class="mode-tab"
+        :class="{ active: showPreview }"
+        @click="showPreview = true"
+      >
+        预览
+      </button>
+    </div>
+
+    <div v-show="!showPreview" ref="editorRef" class="cm-editor-area" />
+
+    <div
+      v-show="showPreview"
+      ref="previewRef"
+      class="preview-area"
+      v-html="previewHtml"
+    />
+  </div>
 </template>
 
 <style scoped>
 .cm-editor-container {
   min-height: 300px;
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.editor-mode-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--vp-c-divider);
+}
+
+.mode-tab {
+  padding: 4px 14px;
+  border: none;
+  background: none;
+  color: var(--vp-c-text-3);
+  cursor: pointer;
+  font-size: 12px;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.mode-tab:hover {
+  color: var(--vp-c-text-1);
+}
+
+.mode-tab.active {
+  color: var(--vp-c-brand-1);
+  border-bottom-color: var(--vp-c-brand);
+}
+
+.cm-editor-area {
+  flex: 1;
+}
+
+.preview-area {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
 }
 
 .cm-editor-container :deep(.cm-editor) {
@@ -223,55 +197,55 @@ watch(
   background: var(--vp-c-brand-soft);
 }
 
-.cm-rendered-block {
-  pointer-events: auto;
-  cursor: pointer;
-  padding: 0 8px;
-}
-
-.cm-rendered-block:hover {
-  background: var(--vp-c-bg-soft);
-  border-radius: 4px;
-}
-
-.cm-rendered-block h1,
-.cm-rendered-block h2,
-.cm-rendered-block h3 {
+.preview-area {
+  line-height: 1.7;
   color: var(--vp-c-text-1);
-  margin: 0.5em 0 0.2em;
 }
 
-.cm-rendered-block p {
-  margin: 0;
+.preview-area :deep(h1) {
+  font-size: 1.6em;
+  margin: 0.5em 0 0.3em;
+}
+
+.preview-area :deep(h2) {
+  font-size: 1.3em;
+  margin: 0.4em 0 0.2em;
+}
+
+.preview-area :deep(p) {
+  margin: 0 0 0.8em;
   color: var(--vp-c-text-2);
 }
 
-.cm-rendered-block ul,
-.cm-rendered-block ol {
-  margin: 0;
+.preview-area :deep(code) {
+  background: var(--vp-c-bg-soft);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+
+.preview-area :deep(pre) {
+  background: var(--vp-c-bg-soft);
+  padding: 12px;
+  border-radius: 6px;
+  overflow-x: auto;
+}
+
+.preview-area :deep(blockquote) {
+  margin: 0 0 0.8em;
+  padding-left: 12px;
+  border-left: 3px solid var(--vp-c-brand);
+  color: var(--vp-c-text-2);
+}
+
+.preview-area :deep(ul),
+.preview-area :deep(ol) {
   padding-left: 1.5em;
   color: var(--vp-c-text-2);
 }
 
-.cm-rendered-block code {
-  background: var(--vp-c-bg-soft);
-  padding: 1px 4px;
-  border-radius: 3px;
-  font-size: 0.85em;
-}
-
-.cm-rendered-block pre {
-  background: var(--vp-c-bg-soft);
-  padding: 8px 12px;
-  border-radius: 4px;
-  overflow-x: auto;
-}
-
-.cm-rendered-block blockquote {
-  margin: 0;
-  padding-left: 12px;
-  border-left: 3px solid var(--vp-c-brand);
-  color: var(--vp-c-text-2);
+.preview-area :deep(a) {
+  color: var(--vp-c-brand);
 }
 
 @media (max-width: 767px) {
