@@ -272,6 +272,24 @@ watch(
   background: var(--vp-c-brand-soft);
 }
 
+/* Override CodeMirror syntax highlight colors for markdown */
+.cm-editor-container :deep(.cm-editor .cm-link) {
+  color: var(--vp-c-brand-1);
+  text-decoration: underline;
+}
+.cm-editor-container :deep(.cm-editor .cm-url) {
+  color: var(--vp-c-text-2);
+}
+.cm-editor-container :deep(.cm-editor .cm-heading) {
+  color: var(--vp-c-text-1);
+}
+.cm-editor-container :deep(.cm-editor .cm-strong) {
+  font-weight: 700;
+}
+.cm-editor-container :deep(.cm-editor .cm-emphasis) {
+  font-style: italic;
+}
+
 /* Article-like max-width for the rendered lines */
 .cm-editor-container :deep(.cm-editor .cm-content) {
   max-width: 744px;
