@@ -5,6 +5,7 @@ const CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID as string
 const REDIRECT_URI = typeof window !== 'undefined'
   ? `${window.location.origin}/__auth/callback`
   : ''
+const LOCAL_EDIT = import.meta.env.VITE_LOCALEDIT === '1'
 
 interface GitHubUser {
   login: string
@@ -35,6 +36,12 @@ const user = ref<GitHubUser | null>(null)
 const token = ref<string | null>(
   typeof window !== 'undefined' ? localStorage.getItem('github_token') : null
 )
+
+if (typeof window !== 'undefined' && LOCAL_EDIT) {
+  isLoggedIn.value = true
+  user.value = { login: 'local-dev', avatar_url: '' }
+  token.value = token.value || 'local-dev-token'
+}
 
 async function verifyToken(t: string): Promise<boolean> {
   try {

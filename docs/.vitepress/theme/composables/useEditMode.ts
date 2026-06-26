@@ -120,11 +120,23 @@ export function useEditMode() {
         originalContent.value = ''
       }
     } catch {
+      let localContent = fallbackContent || ''
+
+      if (import.meta.env.VITE_LOCALEDIT === '1') {
+        try {
+          const res = await fetch(`/${path}`)
+          if (res.ok) {
+            localContent = await res.text()
+          }
+        } catch {}
+      }
+
       isNewFile.value = true
       remoteSha.value = null
-      frontmatter.value = {}
-      bodyContent.value = ''
-      content.value = fallbackContent || ''
+      const localParsed = parseFrontmatter(localContent)
+      frontmatter.value = { ...localParsed.frontmatter }
+      bodyContent.value = localParsed.body || ''
+      content.value = localContent
       originalContent.value = ''
     }
   }
