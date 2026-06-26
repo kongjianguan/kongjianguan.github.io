@@ -1,7 +1,7 @@
 // docs/.vitepress/theme/composables/useGitHubAuth.ts
 import { ref, type Ref } from 'vue'
 
-const CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID as string
+const CLIENT_ID = 'Ov23liU7H301C2GpbL74'
 const REDIRECT_URI = typeof window !== 'undefined'
   ? `${window.location.origin}/__auth/callback`
   : ''
@@ -66,10 +66,6 @@ export function useGitHubAuth() {
   }
 
   async function login() {
-    if (!CLIENT_ID) {
-      console.error('VITE_GITHUB_CLIENT_ID is not set')
-      return
-    }
 
     const verifier = generateCodeVerifier()
     sessionStorage.setItem('code_verifier', verifier)
