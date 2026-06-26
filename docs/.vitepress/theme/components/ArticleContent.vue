@@ -91,7 +91,7 @@ if (typeof window !== 'undefined') {
       :title="articleTitle"
       :is-dirty="isDirty"
       :is-saving="isSaving"
-      :is-logged-in="isLoggedIn.value"
+      :is-logged-in="isLoggedIn"
       :is-new-file="isNewFile"
       @save-draft="saveDraft"
       @commit="showCommitDialog = true"
@@ -99,13 +99,13 @@ if (typeof window !== 'undefined') {
       @toggle-preview="() => {}"
     />
 
-    <div v-if="!isLoggedIn.value" class="login-banner">
+    <div v-if="!isLoggedIn" class="login-banner">
       <LoginButton />
       <span>登录后可编辑和提交文章</span>
     </div>
 
     <FrontmatterPanel
-      v-if="isLoggedIn.value"
+      v-if="isLoggedIn"
       :frontmatter="frontmatter"
       @update:frontmatter="updateFrontmatter"
       v-model:collapsed="fmCollapsed"
