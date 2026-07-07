@@ -1,7 +1,6 @@
 ---
 title: 把Shaft移植到Mac
 date: 2026-07-06 22:14:00
-permalink: /About/History/
 categories:
   - 历程
 tags:

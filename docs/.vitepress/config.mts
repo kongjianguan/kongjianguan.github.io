@@ -57,59 +57,59 @@ export default defineConfig({
   themeConfig: {
 
     // https://vitepress.dev/reference/default-theme-config
-    nav: [
-      { text: '首页', link: '/' },
-      {
-        text: '编程',
-        items: [
-          {
-            text: '☁💡🎈 ACM',
-            items: [
-              { text: '算法', link: '/ACM/algorithm/' },
-            ]
-          },
-          {
-            text: '工具',
-            items: [
-              { text: '教程', link: '/guidance/' },
-              { text: '配置', link: '/configure/' },
-            ],
+    // nav: [
+    //   { text: '首页', link: '/' },
+    //   {
+    //     text: '编程',
+    //     items: [
+    //       {
+    //         text: '☁💡🎈 ACM',
+    //         items: [
+    //           { text: '算法', link: '/ACM/algorithm/' },
+    //         ]
+    //       },
+    //       {
+    //         text: '工具',
+    //         items: [
+    //           { text: '教程', link: '/guidance/' },
+    //           { text: '配置', link: '/configure/' },
+    //         ],
             
-          },
-        ]
-      },
-      {
-        text: '软件',
-        items: [
-          {
-            text:'工具',
-            link:'/Software'
-          }
-        ]
-      },
+    //       },
+    //     ]
+    //   },
+    //   {
+    //     text: '软件',
+    //     items: [
+    //       {
+    //         text:'工具',
+    //         link:'/Software'
+    //       }
+    //     ]
+    //   },
 
-      // {
-      //   text: '📚 学习',
-      //   items: []
-      // },
-      // {
-      //   text: '🎮 娱乐',
-      //   items: []
-      // },
+    //   // {
+    //   //   text: '📚 学习',
+    //   //   items: []
+    //   // },
+    //   // {
+    //   //   text: '🎮 娱乐',
+    //   //   items: []
+    //   // },
 
-      {
-        text: '关于',
-        items: [
-          {
-            text: '博客',
-            items: [
-              { text: '历程', link: '/About/History/' },
-              { text: 'UtaBuild', link: '/About/History/utabuild-intro/' },
-            ]
-          }
-        ]
-      }
-    ],
+    //   {
+    //     text: '关于',
+    //     items: [
+    //       {
+    //         text: '博客',
+    //         items: [
+    //           { text: '历程', link: '/About/History/' },
+    //           { text: 'UtaBuild', link: '/About/History/utabuild-intro/' },
+    //         ]
+    //       }
+    //     ]
+    //   }
+    // ],
 
     // 文章大纲配置
     outline: {

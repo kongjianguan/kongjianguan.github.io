@@ -1,7 +1,6 @@
 ---
 title: 使用Cloudflare建立静态站点
 date: 2026-06-02 20:00:00
-permalink: /guidance
 categories:
   - 教程
 tags:

@@ -1,7 +1,6 @@
 ---
 title: 自用VS Code配置
 date: 2026-06-02 18:57:00
-permalink: /configure/
 categories:
   - 编程
 tags:
