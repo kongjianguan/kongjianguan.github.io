@@ -104,8 +104,14 @@ export const teekConfig = defineTeekConfig({
 
   // 友情链接卡片配置
   friendLink: {
-    enabled: false, // 暂时关闭友情链接
-    list: [],
+    enabled: true, // 暂时关闭友情链接
+    list: [
+      {
+        name: "KKBK",
+        link: "https://kkbk.info/",
+        avatar: "https://img.kkbk.info/site/blog-logo.png"
+      }
+    ],
   },
 
   // 右下角回到顶部配置
