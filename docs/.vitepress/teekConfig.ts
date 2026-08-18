@@ -3,7 +3,7 @@ import { defineTeekConfig } from "vitepress-theme-teek/config";
 import { SocialLinks } from "./config/SocialLinks"; //导入社交链接配置
 import { Imgs } from "./config/BackgroundImg";
 import { vitepressPluginLegend } from 'vitepress-plugin-legend';
-
+const imgBase = process.env.LOCALIMGSRC === '1' ? '/images' : 'https://cdn.jsdmirror.com/gh/kongjianguan/images';
 export const teekConfig = defineTeekConfig({
 
   teekTheme: true,          // 启用 teek 主题
@@ -104,12 +104,31 @@ export const teekConfig = defineTeekConfig({
 
   // 友情链接卡片配置
   friendLink: {
-    enabled: true, // 暂时关闭友情链接
+    enabled: true, // 是否启用友情链接
     list: [
       {
-        name: "KKBK",
+        name: "Future 的酒馆",
         link: "https://kkbk.info/",
+        desc: "网安大佬，神必老资历",
         avatar: "https://img.kkbk.info/site/blog-logo.png"
+      },
+      {
+        name:"Duanhen",
+        desc: "ACMer，自称蒟蒻但实力不可小觑",
+        link:"https://www.duanhen.top",
+        avatar:"https://www.duanhen.top/avatar.jpg"
+      },
+      {
+        name:"🐑の小窝",
+        desc:"蛋骗鸡大神，动手能力极强，常备各种螺丝刀",
+        link:"https://sleepingyeoug.top",
+        avatar:`${imgBase}/friendAvatar/dzu.jpg`
+      },
+      {
+        name:"秋月華乃",
+        desc:"女装大佬，神秘长发男，精通计算机底层知识、日语，自称全国可飞✈️",
+        link:"https://www.kanoverse.com/",
+        avatar:`${imgBase}/friendAvatar/kanoverse.jpg`
       }
     ],
   },
@@ -147,7 +166,7 @@ export const teekConfig = defineTeekConfig({
     enabled: true, // 是否启用站点信息卡片
     createTime: "2026-05-30", // 站点创建时间
     wordCount: true, // 是否开启文章页的字数统计
-    readingTime: false, // 是否开启文章页的阅读时长统计
+    readingTime: true, // 是否开启文章页的阅读时长统计
     // 访问量、访客数统计配置
     statistics: {
       provider: "vercount", // 网站流量统计提供商
@@ -198,7 +217,7 @@ export const teekConfig = defineTeekConfig({
   // 内置 Vite 插件配置
   vitePlugins: {
     sidebarOption: {
-      resolveRule: "rewrites", // 可选 rewrites, filePath 详见 https://vp.teek.top/guide/permalink.html
+      resolveRule: "filePath", // 按 docs 下的真实文件路径生成侧边栏
       collapsed: true, // 开启侧边栏折叠功能。true 默认折叠，false 默认不折叠
     },
   },

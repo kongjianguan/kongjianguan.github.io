@@ -6,13 +6,13 @@ defineProps<{
   isSaving: boolean
   isLoggedIn: boolean
   isNewFile: boolean
+  canCommit?: boolean
 }>()
 
 const emit = defineEmits<{
   saveDraft: []
   commit: []
   exitEdit: []
-  togglePreview: []
 }>()
 </script>
 
@@ -28,17 +28,11 @@ const emit = defineEmits<{
     <span v-else-if="isDirty" class="toolbar-status dirty">未保存</span>
 
     <div class="toolbar-actions">
-      <button class="tb-btn" :disabled="!isLoggedIn || !isDirty" @click="emit('saveDraft')">
+      <button class="tb-btn" :disabled="!isDirty" @click="emit('saveDraft')">
         保存草稿
       </button>
-      <button class="tb-btn tb-btn-primary" :disabled="!isLoggedIn || isSaving" @click="emit('commit')">
+      <button class="tb-btn tb-btn-primary" :disabled="!isLoggedIn || isSaving || canCommit === false" @click="emit('commit')">
         提交
-      </button>
-      <button class="tb-btn" @click="emit('togglePreview')">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="2"/>
-          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-        </svg>
       </button>
       <button class="tb-btn" @click="emit('exitEdit')">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">

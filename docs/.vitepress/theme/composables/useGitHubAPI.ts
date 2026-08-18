@@ -1,4 +1,3 @@
-// docs/.vitepress/theme/composables/useGitHubAPI.ts
 import { useGitHubAuth } from './useGitHubAuth'
 
 const REPO_OWNER = 'kongjianguan'
@@ -6,32 +5,35 @@ const REPO_NAME = 'kongjianguan.github.io'
 const BRANCH = 'main'
 const API_BASE = 'https://api.github.com'
 
-function getHeaders(token: string): HeadersInit {
-  return {
-    Authorization: `Bearer ${token}`,
-    Accept: 'application/vnd.github+json',
-    'Content-Type': 'application/json'
-  }
+function getReadHeaders(): HeadersInit {
+  return { Accept: 'application/vnd.github+json' }
 }
 
 export function useGitHubAPI() {
-  const { token } = useGitHubAuth()
+  const { getCsrfToken } = useGitHubAuth()
 
-  function requireToken(): string {
-    if (!token.value) throw new Error('Not authenticated')
-    return token.value
-  }
-
-  const ARTICLE_DIRS = ['programming', 'Software', '历程', '@pages']
+  const ARTICLE_DIRS = ['programming', 'Software', 'Life', '历程', '随笔', '@pages']
 
   function validatePath(path: string): void {
-    if (path.includes('..')) throw new Error('非法路径：禁止目录穿越')
-    if (/[\u0000-\u001f]/.test(path)) throw new Error('非法路径：包含控制字符')
+    if (
+      !path ||
+      path.length > 512 ||
+      path.startsWith('/') ||
+      path.endsWith('/') ||
+      path.includes('..') ||
+      path.includes('%') ||
+      /[?#\\]/.test(path) ||
+      /[\u0000-\u001f\u007f-\u009f]/.test(path)
+    ) throw new Error('非法路径：包含目录穿越或 URL 控制字符')
+
+    if (path.split('/').some(segment => !segment || segment === '.' || segment === '..')) {
+      throw new Error('非法路径：包含目录穿越')
+    }
 
     const dangerous = [
       /^\.github\//, /^\.vitepress\//, /^api\//,
       /^package(-lock)?\.json$/, /^pnpm-lock/, /^vercel\.json$/,
-      /^\.env/, /^docs\/\.vitepress\//
+      /^\.env/, /^docs\/\.vitepress\//,
     ]
     if (dangerous.some(re => re.test(path))) {
       throw new Error('非法路径：受保护位置')
@@ -50,97 +52,77 @@ export function useGitHubAPI() {
     }
   }
 
+  function encodeRepoPath(path: string): string {
+    return path.split('/').map(segment => encodeURIComponent(segment)).join('/')
+  }
+
   async function readFile(path: string): Promise<{ content: string; sha: string } | null> {
-    const t = requireToken()
-    const url = `${API_BASE}/repos/${REPO_OWNER}/${REPO_NAME}/contents/${path}?ref=${BRANCH}`
-    const res = await fetch(url, { headers: getHeaders(t) })
+    validatePath(path)
+    const url = new URL(
+      `${API_BASE}/repos/${REPO_OWNER}/${REPO_NAME}/contents/${encodeRepoPath(path)}`,
+    )
+    url.searchParams.set('ref', BRANCH)
+    const res = await fetch(url, { headers: getReadHeaders() })
     if (res.status === 404) return null
     if (!res.ok) throw new Error(`GitHub API error: ${res.status}`)
     const data = await res.json()
+    if (typeof data.content !== 'string' || typeof data.sha !== 'string') {
+      throw new Error('GitHub 返回的不是文件内容')
+    }
     return {
       content: new TextDecoder('utf-8').decode(
-        Uint8Array.from(atob(data.content), c => c.charCodeAt(0))
+        Uint8Array.from(atob(data.content), c => c.charCodeAt(0)),
       ),
-      sha: data.sha
+      sha: data.sha,
     }
   }
 
-  async function createFile(path: string, content: string, message: string): Promise<boolean> {
-    validatePath(path)
-    const t = requireToken()
-    const url = `${API_BASE}/repos/${REPO_OWNER}/${REPO_NAME}/contents/${path}`
-    const body = {
-      message,
-      content: btoa(unescape(encodeURIComponent(content))),
-      branch: BRANCH
-    }
-    const res = await fetch(url, {
-      method: 'PUT',
-      headers: getHeaders(t),
-      body: JSON.stringify(body)
+  async function writeFile(payload: Record<string, unknown>): Promise<{ sha: string } | null> {
+    const res = await fetch('/api/github/contents', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': getCsrfToken() || '',
+      },
+      body: JSON.stringify(payload),
     })
-    return res.ok
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(data.error || `GitHub write failed (${res.status})`)
+    if (typeof data.sha !== 'string') throw new Error('GitHub did not return a file version')
+    return { sha: data.sha }
+  }
+
+  async function createFile(path: string, content: string, message: string): Promise<{ sha: string } | null> {
+    validatePath(path)
+    return writeFile({ action: 'create', path, content, message })
   }
 
   async function updateFile(path: string, content: string, sha: string, message: string): Promise<{ sha: string } | null> {
     validatePath(path)
-    const t = requireToken()
-    const url = `${API_BASE}/repos/${REPO_OWNER}/${REPO_NAME}/contents/${path}`
-    const body = {
-      message,
-      content: btoa(unescape(encodeURIComponent(content))),
-      sha,
-      branch: BRANCH
-    }
-    const res = await fetch(url, {
-      method: 'PUT',
-      headers: getHeaders(t),
-      body: JSON.stringify(body)
-    })
-    if (!res.ok) return null
-    const data = await res.json()
-    return { sha: data.content.sha }
+    return writeFile({ action: 'update', path, content, sha, message })
   }
 
   async function uploadImage(file: File): Promise<string | null> {
-    const t = requireToken()
-
     if (file.size > 5 * 1024 * 1024) {
       throw new Error('Image too large (max 5MB)')
     }
 
-    const rawExt = (file.name.split('.').pop() || '').toLowerCase()
-    const ext = ['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(rawExt) ? rawExt : 'png'
-    const timestamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14)
-    const random = Math.random().toString(36).slice(2, 8)
-    const filename = `${timestamp}-${random}.${ext}`
-    const path = `docs/public/images/${filename}`
-    validatePath(path)
-
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = async () => {
-        const base64 = (reader.result as string).split(',')[1]
-        const imageUrl = `/images/${filename}`
-
-        try {
-          const res = await createFile(path, base64, `upload: ${filename}`)
-          if (res) resolve(imageUrl)
-          else reject(new Error('Upload failed'))
-        } catch (e) {
-          reject(e)
-        }
-      }
-      reader.onerror = () => reject(new Error('Failed to read file'))
-      reader.readAsDataURL(file)
+    const form = new FormData()
+    form.append('file', file)
+    const res = await fetch('/api/github/upload', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'X-CSRF-Token': getCsrfToken() || '' },
+      body: form,
     })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(data.error || 'Upload failed')
+    return typeof data.url === 'string' ? data.url : null
   }
 
   async function fileExists(path: string): Promise<boolean> {
-    const t = requireToken()
-    const url = `${API_BASE}/repos/${REPO_OWNER}/${REPO_NAME}/contents/${path}?ref=${BRANCH}`
-    const res = await fetch(url, { headers: getHeaders(t) })
-    return res.ok
+    return (await readFile(path)) !== null
   }
 
   return { readFile, createFile, updateFile, uploadImage, fileExists }

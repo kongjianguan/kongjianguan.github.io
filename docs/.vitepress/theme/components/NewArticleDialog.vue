@@ -1,7 +1,8 @@
 <script setup lang="ts" name="NewArticleDialog">
 import { ref, watch } from 'vue'
+import { stringify as stringifyYaml } from 'yaml'
 
-defineProps<{ visible: boolean }>()
+const props = defineProps<{ visible: boolean }>()
 const emit = defineEmits<{
   'update:visible': [value: boolean]
   create: [payload: { path: string; title: string; template: string }]
@@ -11,12 +12,19 @@ const title = ref('')
 const directory = ref('随笔')
 const slug = ref('')
 
-const directories = ['programming', 'Software', '历程', '随笔']
+const directories = ['programming', 'Software', 'Life', '历程', '随笔']
+const directoryCategories: Record<string, string> = {
+  programming: '编程',
+  Software: '软件',
+  Life: '生活',
+  历程: '历程',
+  随笔: '随笔',
+}
 
 function titleToSlug(t: string): string {
   if (!t) return ''
   return t
-    .replace(/[^\w\u4e00-\u9fff\s-]/g, '')
+    .replace(/[^\p{L}\p{N}\s-]/gu, '')
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '')
@@ -25,20 +33,33 @@ function titleToSlug(t: string): string {
 
 watch(title, (t) => { slug.value = titleToSlug(t) })
 
+watch(() => props.visible, (visible) => {
+  if (!visible) {
+    title.value = ''
+    slug.value = ''
+    directory.value = '随笔'
+  }
+})
+
+function formatLocalDateTime(date: Date): string {
+  const pad = (value: number) => String(value).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ` +
+    `${pad(date.getHours())}:${pad(date.getMinutes())}:00`
+}
+
 function handleCreate() {
   if (!title.value.trim() || !slug.value.trim()) return
   const path = `${directory.value}/${slug.value}.md`
-  const dateStr = new Date().toISOString().slice(0, 16)
+  const dateStr = formatLocalDateTime(new Date())
 
-  const template = `---
-title: ${title.value}
-date: ${dateStr}
-categories: [${directory.value}]
-tags: []
-description: ''
----
-
-`
+  const frontmatter = stringifyYaml({
+    title: title.value,
+    date: dateStr,
+    categories: [directoryCategories[directory.value] || directory.value],
+    tags: [],
+    description: '',
+  }, { lineWidth: 0 }).trimEnd()
+  const template = `---\n${frontmatter}\n---\n\n`
   emit('create', { path, title: title.value, template })
   emit('update:visible', false)
 }

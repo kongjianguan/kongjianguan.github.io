@@ -7,22 +7,22 @@ import LoginButton from "./LoginButton.vue";
 import NewArticleDialog from "./NewArticleDialog.vue";
 
 import { ref, onMounted } from 'vue';
-import { withBase, useRouter } from 'vitepress';
+import { withBase } from 'vitepress';
 import { useGitHubAuth } from '../composables/useGitHubAuth';
 
 const showNewDialog = ref(false);
-const router = useRouter();
+const { isLoggedIn } = useGitHubAuth();
 
 onMounted(async () => {
   const { pathname, search } = window.location;
-  if (pathname === '/__auth/callback' && new URLSearchParams(search).get('code')) {
+  const callbackParams = new URLSearchParams(search)
+  if (pathname === '/__auth/callback' && (callbackParams.get('code') || callbackParams.get('error'))) {
     const { handleCallback } = useGitHubAuth();
     try {
       await handleCallback();
     } catch (e) {
       console.error('OAuth callback error:', e);
     }
-    router.go('/');
     return;
   }
 
@@ -59,6 +59,22 @@ onMounted(async () => {
   });
 });
 
+function handleNewArticle(payload: { path: string; title: string; template: string }) {
+  if (!isLoggedIn.value) {
+    alert('请先登录 GitHub')
+    return
+  }
+
+  const path = payload.path.startsWith('docs/') ? payload.path : `docs/${payload.path}`
+  sessionStorage.setItem('pending_new_article', JSON.stringify({ ...payload, path }))
+
+  const url = new URL(window.location.href)
+  url.pathname = withBase('/')
+  url.search = '?edit=true&new=true'
+  url.hash = ''
+  window.location.assign(url.pathname + url.search)
+}
+
 </script>
 
 <template>
@@ -71,6 +87,10 @@ onMounted(async () => {
           <line x1="5" y1="12" x2="19" y2="12"/>
         </svg>
       </button>
+    </template>
+
+    <template #home-hero-before>
+      <ArticleContent />
     </template>
 
     <template #doc-before>
@@ -87,7 +107,7 @@ onMounted(async () => {
 
   </Teek.Layout>
 
-  <NewArticleDialog v-model:visible="showNewDialog" />
+  <NewArticleDialog v-model:visible="showNewDialog" @create="handleNewArticle" />
 </template>
 
 <style lang="scss">

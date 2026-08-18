@@ -4,6 +4,7 @@ import { ref, watch } from 'vue'
 const props = defineProps<{
   visible: boolean
   isNewFile: boolean
+  isSaving?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -22,12 +23,13 @@ watch(() => props.visible, (v) => {
 })
 
 function handleConfirm() {
+  if (props.isSaving) return
   if (!message.value.trim()) return
   emit('confirm', { message: message.value.trim() })
-  emit('update:visible', false)
 }
 
 function handleCancel() {
+  if (props.isSaving) return
   emit('update:visible', false)
 }
 
@@ -56,12 +58,15 @@ function handleKeydown(e: KeyboardEvent) {
             type="text"
             class="commit-input"
             placeholder="输入提交信息..."
+            :disabled="isSaving"
           />
-          <p class="dialog-hint">提交后将触发 CI 自动部署</p>
+          <p class="dialog-hint">提交后会触发 CI，部署结果可能稍后更新。</p>
         </div>
         <div class="dialog-footer">
-          <button class="btn-cancel" @click="handleCancel">取消</button>
-          <button class="btn-confirm" @click="handleConfirm" :disabled="!message.trim()">提交</button>
+          <button class="btn-cancel" @click="handleCancel" :disabled="isSaving">取消</button>
+          <button class="btn-confirm" @click="handleConfirm" :disabled="!message.trim() || isSaving">
+            {{ isSaving ? '提交中...' : '提交' }}
+          </button>
         </div>
       </div>
     </div>

@@ -10,9 +10,10 @@ function toggleMenu() {
   menuOpen.value = !menuOpen.value
 }
 
-function handleLogout() {
+async function handleLogout() {
   menuOpen.value = false
-  logout()
+  const ok = await logout()
+  if (!ok) alert('退出登录失败，请检查网络后重试')
 }
 
 function handleClickOutside(e: MouseEvent) {

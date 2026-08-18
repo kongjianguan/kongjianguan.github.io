@@ -14,12 +14,24 @@ function getKey(filePath: string): string {
 export function useDrafts() {
   function loadDraft(filePath: string): DraftData | null {
     const key = getKey(filePath)
-    const raw = localStorage.getItem(key)
-    if (!raw) return null
     try {
-      return JSON.parse(raw)
+      const raw = localStorage.getItem(key)
+      if (!raw) return null
+      const draft = JSON.parse(raw)
+      if (
+        typeof draft?.content !== 'string' ||
+        typeof draft?.frontmatter !== 'object' ||
+        draft.frontmatter === null ||
+        Array.isArray(draft.frontmatter) ||
+        typeof draft?.savedAt !== 'string' ||
+        (draft.remoteSha !== null && typeof draft.remoteSha !== 'string')
+      ) {
+        localStorage.removeItem(key)
+        return null
+      }
+      return draft as DraftData
     } catch {
-      localStorage.removeItem(key)
+      try { localStorage.removeItem(key) } catch { /* storage may be unavailable */ }
       return null
     }
   }
@@ -32,15 +44,19 @@ export function useDrafts() {
       savedAt: new Date().toISOString(),
       remoteSha
     }
-    localStorage.setItem(key, JSON.stringify(draft))
+    try {
+      localStorage.setItem(key, JSON.stringify(draft))
+    } catch {
+      // A private browsing session or a full storage quota must not crash editing.
+    }
   }
 
   function deleteDraft(filePath: string): void {
-    localStorage.removeItem(getKey(filePath))
+    try { localStorage.removeItem(getKey(filePath)) } catch { /* storage may be unavailable */ }
   }
 
   function hasDraft(filePath: string): boolean {
-    return localStorage.getItem(getKey(filePath)) !== null
+    try { return localStorage.getItem(getKey(filePath)) !== null } catch { return false }
   }
 
   return { loadDraft, saveDraft, deleteDraft, hasDraft }

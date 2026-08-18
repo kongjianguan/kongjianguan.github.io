@@ -1,7 +1,6 @@
 ---
 title: UtaBuild - 给日语歌词标上注音
 date: 2026-06-04 00:00:00
-permalink: /Software
 categories:
   - 软件
 tags:

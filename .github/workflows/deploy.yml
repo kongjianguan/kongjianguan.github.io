@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
 
+  pull_request:
+    branches: [main]
+
   workflow_dispatch:
 
 permissions:
@@ -34,17 +37,31 @@ jobs:
         with:
           version: latest
       - name: Setup Pages
+        if: github.event_name != 'pull_request'
         uses: actions/configure-pages@v4
       - name: Install dependencies
         run: pnpm install
+      - name: Validate editor API sources
+        run: pnpm validate:api
+      - name: Bundle editor API
+        run: |
+          pnpm exec esbuild api/auth/callback.ts --bundle --format=esm --platform=neutral --outfile=/tmp/kj-api-callback.mjs
+          pnpm exec esbuild api/auth/me.ts --bundle --format=esm --platform=neutral --outfile=/tmp/kj-api-me.mjs
+          pnpm exec esbuild api/auth/logout.ts --bundle --format=esm --platform=neutral --outfile=/tmp/kj-api-logout.mjs
+          pnpm exec esbuild api/github/contents.ts --bundle --format=esm --platform=neutral --outfile=/tmp/kj-api-contents.mjs
+          pnpm exec esbuild api/github/upload.ts --bundle --format=esm --platform=neutral --outfile=/tmp/kj-api-upload.mjs
+      - name: Validate content
+        run: pnpm validate:content
       - name: Build with VitePress
         run: pnpm build
       - name: Upload artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v3
         with:
           path: docs/.vitepress/dist
 
   deploy:
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
