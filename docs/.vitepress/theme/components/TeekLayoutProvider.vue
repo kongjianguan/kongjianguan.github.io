@@ -6,14 +6,37 @@ import ArticleContent from "./ArticleContent.vue";
 import LoginButton from "./LoginButton.vue";
 import NewArticleDialog from "./NewArticleDialog.vue";
 
-import { ref, onMounted } from 'vue';
-import { withBase } from 'vitepress';
+import { computed, ref, onMounted } from 'vue';
+import { useData, withBase } from 'vitepress';
 import { useGitHubAuth } from '../composables/useGitHubAuth';
+import { useEditorEntry } from '../composables/useEditorEntry';
 
 const showNewDialog = ref(false);
+const { page } = useData();
 const { isLoggedIn } = useGitHubAuth();
+const { editRequested, requestEdit, requestReadMode } = useEditorEntry();
+const hasEditablePage = computed(() => Boolean(page.value.relativePath));
+const editButtonTitle = computed(() => {
+  if (!isLoggedIn.value) return '登录 GitHub 后可编辑文章';
+  if (!hasEditablePage.value) return '当前页面不可编辑';
+  return editRequested.value ? '阅读模式' : '编辑文章';
+});
+
+function handleEditModeToggle() {
+  if (editRequested.value) {
+    requestReadMode();
+    return;
+  }
+  requestEdit();
+}
 
 onMounted(async () => {
+  const currentUrl = new URL(window.location.href);
+  if (currentUrl.searchParams.has('edit')) {
+    currentUrl.searchParams.delete('edit');
+    window.history.replaceState({}, '', currentUrl.pathname + currentUrl.search + currentUrl.hash);
+  }
+
   const { pathname, search } = window.location;
   const callbackParams = new URLSearchParams(search)
   if (pathname === '/__auth/callback' && (callbackParams.get('code') || callbackParams.get('error'))) {
@@ -70,7 +93,7 @@ function handleNewArticle(payload: { path: string; title: string; template: stri
 
   const url = new URL(window.location.href)
   url.pathname = withBase('/')
-  url.search = '?edit=true&new=true'
+  url.search = '?new=true'
   url.hash = ''
   window.location.assign(url.pathname + url.search)
 }
@@ -80,8 +103,26 @@ function handleNewArticle(payload: { path: string; title: string; template: stri
 <template>
   <Teek.Layout>
     <template #nav-bar-content-after>
+      <button
+        class="nav-action-btn edit-article-btn"
+        :class="{ active: editRequested }"
+        :disabled="!isLoggedIn || !hasEditablePage"
+        :title="editButtonTitle"
+        :aria-label="editRequested ? '阅读模式' : '编辑文章'"
+        :aria-pressed="editRequested"
+        @click="handleEditModeToggle"
+      >
+        <svg v-if="editRequested" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2Z"/>
+          <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7Z"/>
+        </svg>
+        <svg v-else viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 20h9"/>
+          <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/>
+        </svg>
+      </button>
       <LoginButton />
-      <button class="new-article-btn" @click="showNewDialog = true" title="新建文章">
+      <button class="nav-action-btn new-article-btn" @click="showNewDialog = true" title="新建文章" aria-label="新建文章">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="12" y1="5" x2="12" y2="19"/>
           <line x1="5" y1="12" x2="19" y2="12"/>
@@ -119,22 +160,35 @@ function handleNewArticle(payload: { path: string; title: string; template: stri
   }
 }
 
-.new-article-btn {
+.nav-action-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 12px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  margin: 0 2px;
   line-height: var(--vp-nav-height);
-  font-size: 14px;
-  font-weight: 500;
   border: none;
+  border-radius: 4px;
   background: none;
   color: var(--vp-c-text-1);
   cursor: pointer;
-  transition: color 0.25s;
+  transition: color 0.2s, background-color 0.2s, opacity 0.2s;
 }
 
-.new-article-btn:hover {
+.nav-action-btn:hover:not(:disabled),
+.nav-action-btn.active {
   color: var(--vp-c-brand-1);
+  background: var(--vp-c-bg-soft);
+}
+
+.nav-action-btn:disabled,
+.nav-action-btn:disabled:hover {
+  color: var(--vp-c-text-3);
+  background: none;
+  cursor: default;
+  opacity: 0.55;
+  pointer-events: none;
 }
 </style>

@@ -1,263 +1,141 @@
 <script setup lang="ts" name="CodeMirrorEditor">
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
-import {
-  EditorView,
-  Decoration,
-  WidgetType,
-  ViewPlugin,
-  ViewUpdate,
-  DecorationSet,
-} from '@codemirror/view'
-import { EditorState, RangeSetBuilder } from '@codemirror/state'
-import { markdown } from '@codemirror/lang-markdown'
-import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
-import { tags as t } from '@lezer/highlight'
-import { basicSetup } from 'codemirror'
-import MarkdownIt from 'markdown-it'
+import { EditorView } from '@codemirror/view'
 
-const md = MarkdownIt({ html: false, breaks: true, linkify: true })
-
-const editorHighlightStyle = HighlightStyle.define([
-  { tag: t.link, color: 'var(--vp-c-brand-1)', textDecoration: 'underline' },
-  { tag: t.url, color: 'var(--vp-c-text-2)' },
-  { tag: t.heading, fontWeight: '600' },
-  { tag: t.strong, fontWeight: '700' },
-  { tag: t.emphasis, fontStyle: 'italic' },
-  { tag: t.strikethrough, textDecoration: 'line-through' },
-  { tag: t.keyword, color: 'var(--vp-c-brand-1)' },
-  { tag: [t.atom, t.bool, t.contentSeparator, t.labelName], color: 'var(--vp-c-text-2)' },
-  { tag: [t.literal, t.inserted], color: 'var(--vp-c-text-2)' },
-  { tag: [t.string, t.deleted], color: 'var(--vp-c-text-2)' },
-  { tag: [t.regexp, t.escape], color: 'var(--vp-c-text-2)' },
-  { tag: t.comment, color: 'var(--vp-c-text-3)', fontStyle: 'italic' },
-  { tag: t.meta, color: 'var(--vp-c-text-3)' },
-])
-
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   modelValue: string
-}>()
+  initialSelection?: number
+}>(), {
+  initialSelection: 0,
+})
 
 const emit = defineEmits<{
   'update:modelValue': [value: string]
+  navigate: [direction: 'previous' | 'next']
+  escape: []
 }>()
 
 const editorRef = ref<HTMLDivElement>()
 let view: EditorView | null = null
+let history: string[] = []
+let historyIndex = 0
+let applyingHistory = false
 
-class RenderedLineWidget extends WidgetType {
-  constructor(
-    readonly html: string,
-    readonly pos: number,
-  ) {
-    super()
+function applyHistory(nextIndex: number): boolean {
+  if (!view || nextIndex < 0 || nextIndex >= history.length || nextIndex === historyIndex) {
+    return false
   }
 
-  toDOM(view: EditorView) {
-    const span = document.createElement('span')
-    span.className = 'cm-rendered-line'
-    span.innerHTML = this.html
-    span.addEventListener('mousedown', (e) => {
-      e.preventDefault()
-      view.dispatch({
-        selection: { anchor: this.pos },
-        scrollIntoView: true,
-      })
-      view.focus()
-    })
-    return span
-  }
-
-  eq(other: RenderedLineWidget) {
-    return other.html === this.html && other.pos === this.pos
-  }
+  historyIndex = nextIndex
+  const value = history[historyIndex]
+  applyingHistory = true
+  view.dispatch({
+    changes: { from: 0, to: view.state.doc.length, insert: value },
+    selection: { anchor: value.length },
+  })
+  applyingHistory = false
+  return true
 }
-
-function renderLineContent(
-  text: string,
-): { html: string; className: string } | null {
-  const trimmed = text.trim()
-
-  if (trimmed === '') return null
-  if (/^```/.test(trimmed)) return null
-
-  const headingMatch = text.match(/^(#{1,6})\s+(.*)$/)
-  if (headingMatch) {
-    const level = headingMatch[1].length
-    const content = md.renderInline(headingMatch[2])
-    return { html: content, className: `cm-md-h${level}` }
-  }
-
-  const quoteMatch = text.match(/^>\s*(.*)$/)
-  if (quoteMatch) {
-    const content = md.renderInline(quoteMatch[1])
-    return { html: content, className: 'cm-md-quote' }
-  }
-
-  const ulMatch = text.match(/^[-*+]\s+(.*)$/)
-  if (ulMatch) {
-    const content = md.renderInline(ulMatch[1])
-    return { html: `• ${content}`, className: 'cm-md-list' }
-  }
-
-  const olMatch = text.match(/^(\d+)\.\s+(.*)$/)
-  if (olMatch) {
-    const content = md.renderInline(olMatch[2])
-    return { html: `${olMatch[1]}. ${content}`, className: 'cm-md-list' }
-  }
-
-  if (/^(-{3,}|\*{3,}|_{3,})\s*$/.test(trimmed)) {
-    return { html: '<hr/>', className: 'cm-md-hr' }
-  }
-
-  const content = md.renderInline(text)
-  return { html: content, className: 'cm-md-p' }
-}
-
-function buildDecorationsFor(view: EditorView, skipLine: number | null): DecorationSet {
-  const builder = new RangeSetBuilder<Decoration>()
-  const doc = view.state.doc
-
-  let inCodeBlock = false
-  let inFrontmatter = false
-  let checkedFrontmatterStart = false
-
-  for (let lineNum = 1; lineNum <= doc.lines; lineNum++) {
-    const line = doc.line(lineNum)
-    const text = line.text
-    const trimmed = text.trim()
-
-    if (!checkedFrontmatterStart && lineNum === 1 && trimmed === '---') {
-      inFrontmatter = true
-      checkedFrontmatterStart = true
-      continue
-    }
-    checkedFrontmatterStart = true
-
-    if (inFrontmatter) {
-      if (trimmed === '---') inFrontmatter = false
-      continue
-    }
-
-    if (/^```/.test(trimmed)) {
-      inCodeBlock = !inCodeBlock
-      continue
-    }
-
-    if (inCodeBlock) continue
-    if (skipLine !== null && lineNum === skipLine) continue
-
-    const result = renderLineContent(text)
-    if (!result) continue
-
-    builder.add(
-      line.from,
-      line.from,
-      Decoration.line({ class: result.className }),
-    )
-
-    if (line.from < line.to) {
-      builder.add(
-        line.from,
-        line.to,
-        Decoration.replace({
-          widget: new RenderedLineWidget(result.html, line.from),
-        }),
-      )
-    }
-  }
-
-  return builder.finish()
-}
-
-const livePreviewPlugin = ViewPlugin.fromClass(
-  class {
-    decorations: DecorationSet
-    skipLine: number | null = null
-    focused: boolean = false
-
-    constructor(view: EditorView) {
-      this.decorations = this.build(view)
-    }
-
-    build(view: EditorView): DecorationSet {
-      const skip = this.focused ? this.skipLine : null
-      return buildDecorationsFor(view, skip)
-    }
-
-    update(update: ViewUpdate) {
-      let changed = false
-      if (update.focusChanged) {
-        const nowFocused = update.view.hasFocus
-        if (nowFocused !== this.focused) {
-          this.focused = nowFocused
-          if (!nowFocused) this.skipLine = null
-          changed = true
-        }
-      }
-      if (update.selectionSet) {
-        const head = update.view.state.selection.main.head
-        const ln = update.view.state.doc.lineAt(head).number
-        if (this.focused && ln !== this.skipLine) {
-          this.skipLine = ln
-          changed = true
-        }
-      }
-      if (update.docChanged || update.viewportChanged) {
-        changed = true
-      }
-      if (changed) this.decorations = this.build(update.view)
-    }
-  },
-  { decorations: (v) => v.decorations },
-)
 
 function createEditor() {
   if (!editorRef.value) return
 
   const updateListener = EditorView.updateListener.of((update) => {
     if (update.docChanged) {
-      emit('update:modelValue', update.state.doc.toString())
+      const value = update.state.doc.toString()
+      if (!applyingHistory) {
+        history = history.slice(0, historyIndex + 1)
+        history.push(value)
+        historyIndex = history.length - 1
+      }
+      emit('update:modelValue', value)
     }
   })
 
-  const extensions = [
-    basicSetup,
-    markdown(),
-    syntaxHighlighting(editorHighlightStyle),
-    updateListener,
-    livePreviewPlugin,
-    EditorView.theme({
-      '&': {
-        height: '100%',
-        fontSize: '16px',
-      },
-      '.cm-scroller': {
-        lineHeight: '1.7',
-        fontFamily: 'var(--vp-font-family-base)',
-      },
-      '.cm-content': {
-        padding: '8px 4px',
-        maxWidth: '744px',
-        margin: '0 auto',
-      },
-      '.cm-line': {
-        padding: '0 8px',
-      },
-    }),
-  ]
+  const navigationHandlers = EditorView.domEventHandlers({
+    keydown: (event, editor) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z') {
+        event.preventDefault()
+        return applyHistory(event.shiftKey ? historyIndex + 1 : historyIndex - 1)
+      }
+      if (event.key === 'Escape') {
+        emit('escape')
+        return true
+      }
+      if (event.key === 'ArrowUp') {
+        const selection = editor.state.selection.main
+        if (selection.empty && selection.head === 0) {
+          emit('navigate', 'previous')
+          return true
+        }
+      }
+      if (event.key === 'ArrowDown') {
+        const selection = editor.state.selection.main
+        if (selection.empty && selection.head === editor.state.doc.length) {
+          emit('navigate', 'next')
+          return true
+        }
+      }
+      return false
+    },
+  })
 
+  const selection = Math.max(0, Math.min(props.initialSelection, props.modelValue.length))
+  history = [props.modelValue]
+  historyIndex = 0
   view = new EditorView({
-    state: EditorState.create({
-      doc: props.modelValue,
-      extensions,
-    }),
+    doc: props.modelValue,
+    selection: { anchor: selection },
+    extensions: [
+      EditorView.lineWrapping,
+      navigationHandlers,
+      updateListener,
+      EditorView.theme({
+          '&': {
+            width: '100%',
+            fontSize: '16px',
+            background: 'var(--vp-c-bg)',
+          },
+          '&.cm-focused': {
+            outline: 'none',
+          },
+          '.cm-scroller': {
+            overflow: 'auto',
+            maxHeight: '60vh',
+            lineHeight: '1.75',
+            fontFamily: 'var(--vp-font-family-base)',
+          },
+          '.cm-content': {
+            padding: '8px 4px',
+            caretColor: 'var(--vp-c-brand-1)',
+          },
+          '.cm-line': {
+            padding: '0 8px',
+          },
+          '.cm-gutters': {
+            display: 'none',
+          },
+          '.cm-activeLine': {
+            background: 'transparent',
+          },
+          '.cm-selectionBackground, ::selection': {
+            backgroundColor: 'var(--vp-c-brand-soft) !important',
+          },
+          '.cm-cursor': {
+            borderLeftColor: 'var(--vp-c-brand-1)',
+          },
+      }),
+    ],
     parent: editorRef.value,
+  })
+
+  requestAnimationFrame(() => {
+    view?.focus()
+    view?.dispatch({ scrollIntoView: true })
   })
 }
 
-onMounted(() => {
-  createEditor()
-})
+onMounted(createEditor)
 
 onBeforeUnmount(() => {
   view?.destroy()
@@ -266,189 +144,38 @@ onBeforeUnmount(() => {
 
 watch(
   () => props.modelValue,
-  (val) => {
-    if (view && val !== view.state.doc.toString()) {
-      view.dispatch({
-        changes: {
-          from: 0,
-          to: view.state.doc.length,
-          insert: val,
-        },
-      })
-    }
+  (value) => {
+    if (!view || value === view.state.doc.toString()) return
+    history = [value]
+    historyIndex = 0
+    applyingHistory = true
+    view.dispatch({
+      changes: {
+        from: 0,
+        to: view.state.doc.length,
+        insert: value,
+      },
+    })
+    applyingHistory = false
   },
 )
 </script>
 
 <template>
-  <div ref="editorRef" class="cm-editor-container" />
+  <div ref="editorRef" class="cm-inline-block-editor" />
 </template>
 
 <style scoped>
-.cm-editor-container {
-  min-height: 300px;
+.cm-inline-block-editor {
+  width: 100%;
+  min-height: 44px;
   overflow: hidden;
-}
-
-.cm-editor-container :deep(.cm-editor) {
+  border-top: 1px solid var(--vp-c-brand-1);
+  border-bottom: 1px solid var(--vp-c-brand-1);
   background: var(--vp-c-bg);
+}
+
+.cm-inline-block-editor :deep(.cm-editor) {
   color: var(--vp-c-text-1);
-  border-radius: 0 0 8px 8px;
-}
-
-.cm-editor-container :deep(.cm-editor .cm-gutters) {
-  display: none;
-}
-
-.cm-editor-container :deep(.cm-editor .cm-content) {
-  caret-color: var(--vp-c-brand-1);
-}
-
-.cm-editor-container :deep(.cm-editor .cm-cursor) {
-  border-left-color: var(--vp-c-brand-1) !important;
-}
-
-.cm-editor-container :deep(.cm-editor .cm-activeLine) {
-  background: transparent;
-}
-
-.cm-editor-container :deep(.cm-editor .cm-selectionBackground) {
-  background: var(--vp-c-brand-soft) !important;
-}
-
-.cm-editor-container :deep(.cm-editor .cm-selectionMatch) {
-  background: var(--vp-c-brand-soft);
-}
-
-.cm-editor-container :deep(.cm-editor .cm-content) {
-  max-width: 744px;
-}
-
-.cm-editor-container :deep(.cm-md-h1) {
-  font-size: 28px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  line-height: 40px;
-  background: linear-gradient(
-    114.2deg,
-    rgba(184, 215, 21, 1) -15.3%,
-    rgba(148, 187, 233, 1) 14.5%,
-    rgba(21, 215, 182, 1) 38.7%,
-    rgba(129, 189, 240, 1) 58.8%,
-    rgba(240, 129, 129, 1) 88.5%
-  );
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-.cm-editor-container :deep(.cm-md-h2) {
-  font-size: 24px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  line-height: 32px;
-  color: var(--vp-c-text-1);
-}
-.cm-editor-container :deep(.cm-md-h3) {
-  font-size: 20px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  line-height: 28px;
-  color: var(--vp-c-text-1);
-}
-.cm-editor-container :deep(.cm-md-h4) {
-  font-size: 18px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  line-height: 24px;
-  color: var(--vp-c-text-1);
-}
-.cm-editor-container :deep(.cm-md-h5) {
-  font-size: 16px;
-  font-weight: 600;
-  line-height: 24px;
-  color: var(--vp-c-text-1);
-}
-.cm-editor-container :deep(.cm-md-h6) {
-  font-size: 15px;
-  font-weight: 600;
-  line-height: 24px;
-  color: var(--vp-c-text-2);
-}
-.cm-editor-container :deep(.cm-md-quote) {
-  color: var(--vp-c-text-2);
-  border-left: 2px solid var(--vp-c-divider);
-  padding-left: 16px;
-  transition: border-color 0.5s;
-}
-.cm-editor-container :deep(.cm-md-list) {
-  padding-left: 1.25rem;
-  color: var(--vp-c-text-1);
-}
-.cm-editor-container :deep(.cm-md-hr) {
-  border-top: 1px solid var(--vp-c-divider);
-}
-.cm-editor-container :deep(.cm-md-p) {
-  line-height: 28px;
-  color: var(--vp-c-text-1);
-}
-
-@media (min-width: 768px) {
-  .cm-editor-container :deep(.cm-md-h1) {
-    font-size: 32px;
-    line-height: 40px;
-  }
-}
-
-.cm-rendered-line {
-  display: inline;
-}
-
-.cm-rendered-line :deep(strong) {
-  font-weight: 600;
-}
-
-.cm-rendered-line :deep(em) {
-  font-style: italic;
-}
-
-.cm-rendered-line :deep(del) {
-  text-decoration: line-through;
-}
-
-.cm-rendered-line :deep(code) {
-  font-size: var(--vp-code-font-size);
-  color: var(--vp-code-color);
-  background-color: var(--vp-code-bg);
-  border-radius: 4px;
-  padding: 3px 6px;
-  font-family: var(--vp-font-family-mono);
-  transition: color 0.25s, background-color 0.5s;
-}
-
-.cm-rendered-line :deep(a) {
-  font-weight: 500;
-  color: var(--vp-c-brand-1);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  pointer-events: none;
-}
-
-.cm-rendered-line :deep(img) {
-  max-width: 100%;
-  max-height: 200px;
-  object-fit: contain;
-  border-radius: 4px;
-}
-
-.cm-rendered-line :deep(hr) {
-  margin: 16px 0;
-  border: none;
-  border-top: 1px solid var(--vp-c-divider);
-}
-
-@media (max-width: 767px) {
-  .cm-editor-container {
-    min-height: 200px;
-  }
 }
 </style>
