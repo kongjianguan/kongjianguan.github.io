@@ -7,15 +7,17 @@ import LoginButton from "./LoginButton.vue";
 import NewArticleDialog from "./NewArticleDialog.vue";
 
 import { computed, ref, onMounted } from 'vue';
-import { useData, withBase } from 'vitepress';
+import { useData, useRoute, withBase } from 'vitepress';
 import { useGitHubAuth } from '../composables/useGitHubAuth';
 import { useEditorEntry } from '../composables/useEditorEntry';
 
 const showNewDialog = ref(false);
 const { page } = useData();
+const route = useRoute();
 const { isLoggedIn } = useGitHubAuth();
 const { editRequested, requestEdit, requestReadMode } = useEditorEntry();
 const hasEditablePage = computed(() => Boolean(page.value.relativePath));
+const isAuthCallback = computed(() => route.path === '/__auth/callback');
 const editButtonTitle = computed(() => {
   if (!isLoggedIn.value) return '登录 GitHub 后可编辑文章';
   if (!hasEditablePage.value) return '当前页面不可编辑';
@@ -39,7 +41,8 @@ onMounted(async () => {
 
   const { pathname, search } = window.location;
   const callbackParams = new URLSearchParams(search)
-  if (pathname === '/__auth/callback' && (callbackParams.get('code') || callbackParams.get('error'))) {
+  if (isAuthCallback.value) {
+    if (!callbackParams.get('code') && !callbackParams.get('error')) return
     const { handleCallback } = useGitHubAuth();
     try {
       await handleCallback();
@@ -101,7 +104,11 @@ function handleNewArticle(payload: { path: string; title: string; template: stri
 </script>
 
 <template>
-  <Teek.Layout>
+  <div v-if="isAuthCallback" class="oauth-callback-page">
+    正在完成 GitHub 登录……
+  </div>
+
+  <Teek.Layout v-else>
     <template #nav-bar-content-after>
       <button
         class="nav-action-btn edit-article-btn"
