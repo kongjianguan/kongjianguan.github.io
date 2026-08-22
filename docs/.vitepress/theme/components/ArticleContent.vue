@@ -58,6 +58,7 @@ const standaloneMode = ref(false)
 let articleRoot: HTMLElement | null = null
 let editableBlocks: EditableBlock[] = []
 let blockLookup = new Map<string, EditableBlock>()
+let emptyBodyPlaceholder: HTMLElement | null = null
 let blockSequence = 0
 let setupGeneration = 0
 
@@ -142,6 +143,16 @@ function parseSourceBlocks(value: string): ParsedSourceBlock[] {
     })
   }
 
+  if (blocks.length === 0 && body.trim().length === 0) {
+    blocks.push({
+      from: bodyOffset,
+      to: value.length,
+      tokenType: 'empty_body',
+      tag: 'p',
+      renderedCount: 1,
+    })
+  }
+
   return blocks
 }
 
@@ -181,6 +192,39 @@ function clearBlockMarkers() {
     element.removeAttribute('data-inline-edit-block')
     element.classList.remove('inline-edit-block')
   })
+}
+
+function removeEmptyBodyPlaceholder() {
+  emptyBodyPlaceholder?.remove()
+  emptyBodyPlaceholder = null
+}
+
+function syncEmptyBodyPlaceholder(sourceBlocks: ParsedSourceBlock[]) {
+  const isEmptyBody = sourceBlocks.some(block => block.tokenType === 'empty_body')
+  if (!isEmptyBody || !articleRoot) {
+    removeEmptyBodyPlaceholder()
+    return
+  }
+
+  if (emptyBodyPlaceholder && articleRoot.contains(emptyBodyPlaceholder)) return
+
+  const existingParagraph = Array.from(articleRoot.children)
+    .find((element): element is HTMLElement => {
+      return element instanceof HTMLElement && element.tagName === 'P'
+    })
+
+  if (existingParagraph) {
+    emptyBodyPlaceholder = existingParagraph
+    if (!existingParagraph.innerHTML.trim()) existingParagraph.innerHTML = '<br>'
+    existingParagraph.classList.add('inline-empty-body')
+    return
+  }
+
+  const placeholder = document.createElement('p')
+  placeholder.className = 'inline-empty-body'
+  placeholder.innerHTML = '<br>'
+  articleRoot.append(placeholder)
+  emptyBodyPlaceholder = placeholder
 }
 
 function alignRenderedBlocks(
@@ -230,6 +274,7 @@ function rebuildBlockBindings() {
   blockLookup = new Map()
 
   const sourceBlocks = parseSourceBlocks(content.value)
+  syncEmptyBodyPlaceholder(sourceBlocks)
   const renderedElements = Array.from(articleRoot.children)
     .filter((element): element is HTMLElement => {
       return element instanceof HTMLElement && !element.classList.contains('inline-block-editor-mount')
@@ -393,6 +438,7 @@ async function setupInlineEditing() {
   if (articleRoot && articleRoot !== root) {
     articleRoot.removeEventListener('click', handleArticleClick)
     clearBlockMarkers()
+    removeEmptyBodyPlaceholder()
   }
 
   document.querySelectorAll('.vp-doc').forEach(element => element.classList.remove('edit-mode-hidden'))
@@ -411,6 +457,7 @@ async function cleanupInlineEditing(renderActive = true) {
     articleRoot.classList.remove('article-inline-editing')
     clearBlockMarkers()
   }
+  removeEmptyBodyPlaceholder()
   articleRoot = null
   editableBlocks = []
   blockLookup = new Map()
@@ -418,11 +465,11 @@ async function cleanupInlineEditing(renderActive = true) {
 
 async function startEditing(): Promise<void> {
   const pending = getPendingNewArticle()
-  standaloneMode.value = Boolean(pending)
   const path = getFilePathFromPage() || 'docs/index.md'
   await initEditor(path, pending?.template || '', {
     expectNew: Boolean(pending && !pending.created),
   })
+  standaloneMode.value = Boolean(pending)
   await nextTick()
   if (!standaloneMode.value) await setupInlineEditing()
 }
