@@ -21,6 +21,11 @@ export default defineConfig({
   // https://vitepress.dev/zh/guide/sitemap-generation
   sitemap: {
     hostname: 'https://kongjianguan.github.io',
+    transformItems(items) {
+      return items.filter(item => (
+        new URL(item.url, 'https://kongjianguan.github.io').pathname !== '/__auth/callback'
+      ))
+    },
   },
 
 
