@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Personal blog built with VitePress",
   "homepage": "https://github.com/kongjianguan/VitePressBlog",
+  "packageManager": "pnpm@11.17.0",
   "scripts": {
     "dev": "vitepress dev docs",
     "build": "NODE_OPTIONS=--max-old-space-size=5120 vitepress build docs",
