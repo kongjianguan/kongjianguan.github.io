@@ -5,6 +5,7 @@ import { EditorView } from '@codemirror/view'
 const props = withDefaults(defineProps<{
   modelValue: string
   initialSelection?: number
+  stageImage?: (file: File) => Promise<string | null>
 }>(), {
   initialSelection: 0,
 })
@@ -13,9 +14,11 @@ const emit = defineEmits<{
   'update:modelValue': [value: string]
   navigate: [direction: 'previous' | 'next']
   escape: []
+  'image-error': [message: string]
 }>()
 
 const editorRef = ref<HTMLDivElement>()
+const uploadingImage = ref(false)
 let view: EditorView | null = null
 let history: string[] = []
 let historyIndex = 0
@@ -35,6 +38,49 @@ function applyHistory(nextIndex: number): boolean {
   })
   applyingHistory = false
   return true
+}
+
+function getClipboardImage(event: ClipboardEvent): File | null {
+  const files = Array.from(event.clipboardData?.files || [])
+  const directFile = files.find(file => file.type.startsWith('image/'))
+  if (directFile) return directFile
+
+  for (const item of Array.from(event.clipboardData?.items || [])) {
+    if (item.kind !== 'file' || !item.type.startsWith('image/')) continue
+    const file = item.getAsFile()
+    if (file) return file
+  }
+
+  return null
+}
+
+function getImageAlt(file: File): string {
+  const name = file.name.replace(/\.[^.]+$/, '').trim().replace(/[\[\]]/g, '')
+  return name || '图片'
+}
+
+async function stageAndInsertImage(editor: EditorView, file: File): Promise<void> {
+  if (!props.stageImage || uploadingImage.value) return
+
+  const selection = editor.state.selection.main
+  uploadingImage.value = true
+  try {
+    const url = await props.stageImage(file)
+    if (!url) throw new Error('图片上传失败')
+    if (view !== editor) return
+
+    const insert = `![${getImageAlt(file)}](${url})`
+    const from = Math.min(selection.from, editor.state.doc.length)
+    const to = Math.min(selection.to, editor.state.doc.length)
+    editor.dispatch({
+      changes: { from, to, insert },
+      selection: { anchor: from + insert.length },
+    })
+  } catch (error) {
+    emit('image-error', error instanceof Error ? error.message : '图片上传失败')
+  } finally {
+    uploadingImage.value = false
+  }
 }
 
 function createEditor() {
@@ -77,6 +123,13 @@ function createEditor() {
         }
       }
       return false
+    },
+    paste: (event, editor) => {
+      const file = getClipboardImage(event)
+      if (!file || !props.stageImage || uploadingImage.value) return false
+      event.preventDefault()
+      void stageAndInsertImage(editor, file)
+      return true
     },
   })
 
@@ -162,11 +215,14 @@ watch(
 </script>
 
 <template>
-  <div ref="editorRef" class="cm-inline-block-editor" />
+  <div ref="editorRef" class="cm-inline-block-editor" :class="{ 'is-uploading-image': uploadingImage }">
+    <span v-if="uploadingImage" class="image-upload-status" role="status">图片准备中...</span>
+  </div>
 </template>
 
 <style scoped>
 .cm-inline-block-editor {
+  position: relative;
   width: 100%;
   min-height: 44px;
   overflow: hidden;
@@ -177,5 +233,18 @@ watch(
 
 .cm-inline-block-editor :deep(.cm-editor) {
   color: var(--vp-c-text-1);
+}
+
+.image-upload-status {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  z-index: 1;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: var(--vp-c-bg-soft);
+  color: var(--vp-c-text-2);
+  font-size: 11px;
+  pointer-events: none;
 }
 </style>
