@@ -8,6 +8,7 @@ const REDIRECT_URI = typeof window !== 'undefined'
 const LOCAL_EDIT = import.meta.env.DEV && import.meta.env.VITE_LOCALEDIT === '1'
 const OAUTH_STATE_COOKIE = 'github_oauth_state'
 const OAUTH_MESSAGE = 'github-oauth-complete'
+const OAUTH_ERROR_KEY = 'github_oauth_error'
 const OAUTH_PENDING_PREFIX = 'github_oauth_pending:'
 
 interface PendingOAuth {
@@ -18,6 +19,13 @@ interface PendingOAuth {
 interface GitHubUser {
   login: string
   avatar_url: string
+}
+
+export interface CallbackResult {
+  ok: boolean
+  error?: string
+  returnTo?: string
+  isPopup?: boolean
 }
 
 function generateCodeVerifier(): string {
@@ -67,6 +75,7 @@ function getSafeReturnTo(value: string | null): string {
   try {
     const url = new URL(value, window.location.origin)
     if (url.origin !== window.location.origin) return '/'
+    if (url.pathname === AUTH_CALLBACK_PATH) return '/'
     return `${url.pathname}${url.search}${url.hash}`
   } catch {
     return '/'
@@ -149,13 +158,16 @@ function startPopupMessageListener(): void {
   window.addEventListener('message', (event: MessageEvent) => {
     if (
       event.origin !== window.location.origin ||
-      event.source !== authPopup ||
+      (authPopup && event.source !== authPopup) ||
       event.data?.type !== OAUTH_MESSAGE
     ) return
 
     releaseAuthPopup()
     if (event.data.ok) {
       void loadSession()
+    } else if (event.data.error && event.data.error !== 'access_denied' && event.data.error !== 'GitHub 登录已取消') {
+      console.error('GitHub OAuth error:', event.data.error)
+      alert(event.data.error)
     } else if (event.data.error) {
       console.error('GitHub OAuth error:', event.data.error)
     }
@@ -218,19 +230,28 @@ export function useGitHubAuth() {
     }
   }
 
-  async function handleCallback(): Promise<void> {
+  async function handleCallback(): Promise<CallbackResult> {
     const urlParams = new URLSearchParams(window.location.search)
     const code = urlParams.get('code')
     const oauthError = urlParams.get('error')
+    const oauthErrorDesc = urlParams.get('error_description')
     const state = urlParams.get('state')
     const pending = readPendingOAuth(state)
-    const returnTo = pending?.returnTo || '/'
-    const isPopup = window.opener && window.opener !== window
+    const returnTo = getSafeReturnTo(pending?.returnTo || '/')
+    const isPopup = Boolean(window.opener && window.opener !== window)
 
     function finishPopup(ok: boolean, error?: string): void {
       if (!isPopup) return
-      window.opener?.postMessage({ type: OAUTH_MESSAGE, ok, error }, window.location.origin)
-      window.close()
+      try {
+        window.opener?.postMessage({ type: OAUTH_MESSAGE, ok, error }, window.location.origin)
+      } catch (e) {
+        console.error('Failed to postMessage to opener:', e)
+      }
+      try {
+        window.close()
+      } catch (e) {
+        console.error('Failed to close popup:', e)
+      }
     }
 
     function clearCallbackState(): void {
@@ -238,22 +259,40 @@ export function useGitHubAuth() {
       setCookie(OAUTH_STATE_COOKIE, '', 0)
     }
 
+    if (!code && !oauthError && !state) {
+      clearCallbackState()
+      if (isPopup) finishPopup(false, '未检测到登录授权信息')
+      return { ok: false, error: '未检测到登录授权信息', returnTo: '/', isPopup }
+    }
+
     if (!code) {
-      if (oauthError) console.error('GitHub OAuth error:', oauthError)
+      const errorMsg = oauthError === 'access_denied'
+        ? 'GitHub 登录已取消'
+        : (oauthErrorDesc || oauthError || 'GitHub 授权失败')
+      console.error('GitHub OAuth error:', errorMsg)
       clearCallbackState()
       if (isPopup) {
-        finishPopup(false, oauthError || 'GitHub 登录取消')
-      } else if (oauthError) {
-        window.location.replace(getSafeReturnTo(returnTo))
+        finishPopup(false, errorMsg)
+      } else {
+        if (oauthError !== 'access_denied') {
+          try { sessionStorage.setItem(OAUTH_ERROR_KEY, errorMsg) } catch {}
+        }
+        window.location.replace(returnTo)
       }
-      return
+      return { ok: false, error: errorMsg, returnTo, isPopup }
     }
 
     if (!pending?.verifier || !state) {
+      const errorMsg = '登录状态已失效，请重试'
       console.error('Invalid OAuth callback state')
       clearCallbackState()
-      finishPopup(false, '登录状态已失效，请重试')
-      return
+      if (isPopup) {
+        finishPopup(false, errorMsg)
+      } else {
+        try { sessionStorage.setItem(OAUTH_ERROR_KEY, errorMsg) } catch {}
+        window.location.replace(returnTo)
+      }
+      return { ok: false, error: errorMsg, returnTo, isPopup }
     }
 
     try {
@@ -272,12 +311,20 @@ export function useGitHubAuth() {
       if (isPopup) {
         finishPopup(true)
       } else {
-        window.location.replace(getSafeReturnTo(returnTo))
+        window.location.replace(returnTo)
       }
+      return { ok: true, returnTo, isPopup }
     } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'GitHub 登录失败'
       console.error('OAuth callback error:', error)
       clearCallbackState()
-      finishPopup(false, error instanceof Error ? error.message : 'GitHub 登录失败')
+      if (isPopup) {
+        finishPopup(false, errorMsg)
+      } else {
+        try { sessionStorage.setItem(OAUTH_ERROR_KEY, errorMsg) } catch {}
+        window.location.replace(returnTo)
+      }
+      return { ok: false, error: errorMsg, returnTo, isPopup }
     }
   }
 
@@ -309,6 +356,14 @@ export function useGitHubAuth() {
     login,
     loginPending,
     handleCallback,
+    consumeAuthError: () => {
+      if (typeof window === 'undefined') return null
+      try {
+        const err = sessionStorage.getItem(OAUTH_ERROR_KEY)
+        if (err) sessionStorage.removeItem(OAUTH_ERROR_KEY)
+        return err
+      } catch { return null }
+    },
     logout,
     getCsrfToken: () => getCookie('github_csrf'),
   }
