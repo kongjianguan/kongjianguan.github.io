@@ -43,11 +43,11 @@ jobs:
         run: pnpm validate:api
       - name: Bundle editor API
         run: |
-          pnpm exec esbuild api/auth/callback.ts --bundle --format=esm --platform=neutral --outfile=/tmp/kj-api-callback.mjs
-          pnpm exec esbuild api/auth/me.ts --bundle --format=esm --platform=neutral --outfile=/tmp/kj-api-me.mjs
-          pnpm exec esbuild api/auth/logout.ts --bundle --format=esm --platform=neutral --outfile=/tmp/kj-api-logout.mjs
-          pnpm exec esbuild api/github/contents.ts --bundle --format=esm --platform=neutral --outfile=/tmp/kj-api-contents.mjs
-          pnpm exec esbuild api/github/upload.ts --bundle --format=esm --platform=neutral --outfile=/tmp/kj-api-upload.mjs
+          pnpm dlx esbuild api/auth/callback.ts --bundle --format=esm --platform=neutral --outfile=/tmp/kj-api-callback.mjs
+          pnpm dlx esbuild api/auth/me.ts --bundle --format=esm --platform=neutral --outfile=/tmp/kj-api-me.mjs
+          pnpm dlx esbuild api/auth/logout.ts --bundle --format=esm --platform=neutral --outfile=/tmp/kj-api-logout.mjs
+          pnpm dlx esbuild api/github/contents.ts --bundle --format=esm --platform=neutral --outfile=/tmp/kj-api-contents.mjs
+          pnpm dlx esbuild api/github/upload.ts --bundle --format=esm --platform=neutral --outfile=/tmp/kj-api-upload.mjs
       - name: Validate content
         run: pnpm validate:content
       - name: Build with VitePress
