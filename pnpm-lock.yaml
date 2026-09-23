@@ -80,6 +80,9 @@ importers:
       '@lezer/markdown':
         specifier: ^1.7.2
         version: 1.7.2
+      mathjax-full:
+        specifier: ^3.2.2
+        version: 3.2.2
       yaml:
         specifier: ^2.8.2
         version: 2.9.0

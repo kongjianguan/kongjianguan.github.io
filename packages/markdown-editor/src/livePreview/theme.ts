@@ -78,10 +78,40 @@ export const editorTheme = EditorView.theme({
     margin: '12px 0',
     padding: '12px',
     textAlign: 'center',
-    fontFamily: 'var(--mde-font-mono)',
     backgroundColor: 'var(--mde-bg-soft)',
     borderRadius: '6px',
-    whiteSpace: 'pre-wrap',
+    overflowX: 'auto',
+  },
+  '.mde-math-inline': {
+    display: 'inline-block',
+    verticalAlign: 'middle',
+  },
+  // 排版完成前先显示公式源码，用弱化颜色区分
+  '.mde-math-pending': {
+    color: 'var(--mde-text-3)',
+    fontFamily: 'var(--mde-font-mono)',
+    fontSize: '0.9em',
+  },
+  /*
+   * 标题行的上下间距。数值取自阅读态的标题样式，
+   * 阅读态用外边距，这里换成内边距以便参与行高测量。
+   */
+  '.mde-h1': {
+    paddingTop: '8px',
+    paddingBottom: '8px',
+  },
+  '.mde-h2': {
+    paddingTop: '24px',
+    paddingBottom: '12px',
+    borderTop: '1px solid var(--mde-divider)',
+  },
+  '.mde-h3': {
+    paddingTop: '16px',
+    paddingBottom: '4px',
+  },
+  '.mde-h4, .mde-h5, .mde-h6': {
+    paddingTop: '8px',
+    paddingBottom: '4px',
   },
   '.mde-image': {
     display: 'block',

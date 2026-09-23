@@ -191,25 +191,50 @@ describe('代码块与公式内部不受影响', () => {
     expect(ranges.some(([from]) => from === lineStart)).toBe(false)
   })
 
-  it('公式的美元定界符按光标位置切换', () => {
+  it('光标离开时整段行内公式被公式部件接管', () => {
     const doc = '定义 $f[u]$ 距离'
     const state = stateOf(doc, 0)
-    // 两个 $ 分别位于 [3,4) 与 [8,9)
-    expect(isHidden(state, 3, 4)).toBe(true)
-    expect(isHidden(state, 8, 9)).toBe(true)
+    // 整段 $f[u]$ 位于 [3,9)，一次性替换，方括号不会被单独隐藏
+    expect(isHidden(state, 3, 9)).toBe(true)
   })
 
-  it('光标进入公式时显示美元定界符', () => {
+  it('光标进入公式时恢复源码', () => {
     const doc = '定义 $f[u]$ 距离'
     const state = stateOf(doc, 5)
-    expect(isHidden(state, 3, 4)).toBe(false)
+    expect(hidden(state)).toEqual([])
   })
 
-  it('公式内的方括号不被当作链接隐藏', () => {
+  it('公式内的方括号不被当作链接处理', () => {
     const doc = '定义 $f[u]$ 距离'
     const ranges = hidden(stateOf(doc, 0))
     const bracket = doc.indexOf('[u]')
-    expect(ranges.some(([from]) => from === bracket)).toBe(false)
+    expect(ranges.some(([from, to]) => from === bracket && to === bracket + 3)).toBe(false)
+  })
+})
+
+describe('行内公式渲染', () => {
+  it('收起时渲染为公式部件而不是源码', () => {
+    const doc = '定义 $f[u]$ 距离\n\n尾部\n'
+    const { view, cleanup } = render(doc, doc.length)
+    expect(view.dom.querySelector('.mde-math-inline')).not.toBeNull()
+    expect(view.dom.textContent).not.toContain('$')
+    cleanup()
+  })
+
+  it('光标进入公式时恢复源码', () => {
+    const doc = '定义 $f[u]$ 距离\n\n尾部\n'
+    const { view, cleanup } = render(doc, doc.indexOf('f[u]') + 1)
+    expect(view.dom.querySelector('.mde-math-inline')).toBeNull()
+    expect(view.dom.textContent).toContain('$f[u]$')
+    cleanup()
+  })
+
+  it('金额写法不被渲染为公式', () => {
+    const doc = '价格 $5 到 $10 之间\n\n尾部\n'
+    const { view, cleanup } = render(doc, doc.length)
+    expect(view.dom.querySelector('.mde-math-inline')).toBeNull()
+    expect(view.dom.textContent).toContain('$5 到 $10')
+    cleanup()
   })
 })
 
@@ -513,6 +538,41 @@ describe('Setext 标题', () => {
   it('光标位于下划线行时保留下划线', () => {
     const { view, cleanup } = render(doc, doc.indexOf('====='))
     expect(view.dom.textContent).toContain('=====')
+    cleanup()
+  })
+})
+
+describe('标题行间距', () => {
+  it('二级标题行带分隔线类名', () => {
+    const doc = '## 标题\n\n正文\n'
+    const { view, cleanup } = render(doc, 0)
+    const line = view.dom.querySelector('.cm-line')
+    expect(line?.classList.contains('mde-heading')).toBe(true)
+    expect(line?.classList.contains('mde-h2')).toBe(true)
+    cleanup()
+  })
+
+  it('各级标题使用各自的类名', () => {
+    const doc = '# 一\n\n## 二\n\n### 三\n\n正文\n'
+    const { view, cleanup } = render(doc, doc.length)
+    const classes = Array.from(view.dom.querySelectorAll<HTMLElement>('.cm-line.mde-heading'))
+      .map(line => Array.from(line.classList).find(name => /^mde-h\d$/.test(name)))
+    expect(classes).toEqual(['mde-h1', 'mde-h2', 'mde-h3'])
+    cleanup()
+  })
+
+  it('正文行不带标题类名', () => {
+    const doc = '正文\n\n## 标题\n'
+    const { view, cleanup } = render(doc, 0)
+    expect(view.dom.querySelector('.cm-line')?.classList.contains('mde-heading')).toBe(false)
+    cleanup()
+  })
+
+  it('Setext 标题行同样带上类名', () => {
+    const doc = '标题文字\n=====\n\n正文\n'
+    const { view, cleanup } = render(doc, doc.indexOf('正文'))
+    const line = view.dom.querySelector<HTMLElement>('.cm-line.mde-heading')
+    expect(line?.classList.contains('mde-h1')).toBe(true)
     cleanup()
   })
 })

@@ -96,7 +96,8 @@ function saveEditorDraft(withNotice = true): void {
 async function startEditing(): Promise<void> {
   contentLoaded.value = false
   await initEditor(props.filePath, props.fallbackContent, { expectNew: props.expectNew })
-  initialSelection.value = bodyContent.value.length
+  // 打开编辑态时停在文首，与阅读文章时从开头看起的习惯一致
+  initialSelection.value = 0
   await nextTick()
   contentLoaded.value = true
 }

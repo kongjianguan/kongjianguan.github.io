@@ -11,6 +11,7 @@ import { syntaxTree } from '@codemirror/language'
 import type { SyntaxNode } from '@lezer/common'
 import { intersectsSelection, isVerbatimContext, type MarkerRange } from './model'
 import { blockPreview } from './blocks'
+import { mathWidget } from './mathWidget'
 
 /*
  * 实时预览：光标不落在某段标记内时把它隐藏，使正文看起来接近渲染结果；
@@ -141,7 +142,6 @@ const REVEAL_SCOPE_NODES = new Set([
   'Subscript',
   'Superscript',
   'InlineCode',
-  'Math',
   'Link',
   'Image',
   'Autolink',
@@ -172,6 +172,21 @@ function findRevealScope(node: SyntaxNode): MarkerRange | null {
     current = current.parent
   }
   return null
+}
+
+/*
+ * 标题行加上与阅读态接近的上下间距。阅读态用外边距排版，
+ * 这里改用内边距，因为内边距计入行高测量，外边距不计入。
+ */
+const HEADING_LINE_CLASS: Record<string, string> = {
+  ATXHeading1: 'mde-h1',
+  ATXHeading2: 'mde-h2',
+  ATXHeading3: 'mde-h3',
+  ATXHeading4: 'mde-h4',
+  ATXHeading5: 'mde-h5',
+  ATXHeading6: 'mde-h6',
+  SetextHeading1: 'mde-h1',
+  SetextHeading2: 'mde-h2',
 }
 
 /* 判断节点是否处于某个结构之内 */
@@ -209,6 +224,13 @@ export function buildDecorations(state: EditorState): DecorationSet {
       if (isVerbatimContext(node.node.parent)) return
 
       const name = node.name
+
+      const headingClass = HEADING_LINE_CLASS[name]
+      if (headingClass) {
+        const line = state.doc.lineAt(from)
+        builder.add(line.from, line.from, Decoration.line({ class: `mde-heading ${headingClass}` }))
+        return
+      }
 
       if (name === 'Image') {
         if (intersectsSelection(from, to, ranges, 0)) return
@@ -285,9 +307,24 @@ export function buildDecorations(state: EditorState): DecorationSet {
         return
       }
 
+      if (name === 'Math') {
+        /*
+         * 行内公式与阅读态一致地排版。光标进入公式区间时恢复源码，
+         * 便于继续编辑算式。
+         */
+        if (intersectsSelection(from, to, ranges, 0)) return
+        const source = state.doc.sliceString(from, to)
+        builder.add(from, to, Decoration.replace({
+          widget: mathWidget(source.replace(/^\$/, '').replace(/\$$/, ''), source, false),
+        }))
+        return
+      }
+
       if (HIDDEN_MARK_NODES.has(name) || name === 'URL' || name === 'LinkTitle' || name === 'LinkLabel') {
         // 块级公式整块由块级模块处理，定界符不再单独隐藏
         if (name === 'DollarMark' && hasAncestor(node.node, 'MathBlock')) return
+        // 行内公式整段由公式部件接管，定界符不再单独隐藏
+        if (name === 'DollarMark' && hasAncestor(node.node, 'Math')) return
         // 由所属结构的范围决定：光标进入该结构时显示标记，离开则收起。
         const scope = findRevealScope(node.node)
         if (scope && !intersectsSelection(scope.from, scope.to, ranges, 0)) {
