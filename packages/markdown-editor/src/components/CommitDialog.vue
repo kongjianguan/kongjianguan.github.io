@@ -1,11 +1,20 @@
 <script setup lang="ts" name="CommitDialog">
 import { ref, watch } from 'vue'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   visible: boolean
   isNewFile: boolean
   isSaving?: boolean
-}>()
+  title?: string
+  hint?: string
+  newFileMessage?: string
+  updateMessage?: string
+}>(), {
+  title: '提交到 GitHub',
+  hint: '提交后会触发 CI，部署结果可能稍后更新。',
+  newFileMessage: 'feat: add new article',
+  updateMessage: 'docs: update article',
+})
 
 const emit = defineEmits<{
   'update:visible': [value: boolean]
@@ -17,7 +26,7 @@ const inputRef = ref<HTMLInputElement | null>(null)
 
 watch(() => props.visible, (v) => {
   if (v) {
-    message.value = props.isNewFile ? 'feat: add new article' : 'docs: update article'
+    message.value = props.isNewFile ? props.newFileMessage : props.updateMessage
     setTimeout(() => inputRef.value?.focus(), 100)
   }
 })
@@ -48,7 +57,7 @@ function handleKeydown(e: KeyboardEvent) {
   <Teleport to="body">
     <div v-if="visible" class="dialog-overlay" @click.self="handleCancel">
       <div class="dialog-content" @keydown="handleKeydown">
-        <h3 class="dialog-title">提交到 GitHub</h3>
+        <h3 class="dialog-title">{{ title }}</h3>
         <div class="dialog-body">
           <label class="field-label" for="commit-msg">Commit Message</label>
           <input
@@ -60,7 +69,7 @@ function handleKeydown(e: KeyboardEvent) {
             placeholder="输入提交信息..."
             :disabled="isSaving"
           />
-          <p class="dialog-hint">提交后会触发 CI，部署结果可能稍后更新。</p>
+          <p class="dialog-hint">{{ hint }}</p>
         </div>
         <div class="dialog-footer">
           <button class="btn-cancel" @click="handleCancel" :disabled="isSaving">取消</button>
@@ -85,8 +94,8 @@ function handleKeydown(e: KeyboardEvent) {
 }
 
 .dialog-content {
-  background: var(--vp-c-bg-soft);
-  border: 1px solid var(--vp-c-divider);
+  background: var(--mde-bg-soft);
+  border: 1px solid var(--mde-divider);
   border-radius: 12px;
   padding: 24px;
   width: 90%;
@@ -98,7 +107,7 @@ function handleKeydown(e: KeyboardEvent) {
   margin: 0 0 16px;
   font-size: 16px;
   font-weight: 600;
-  color: var(--vp-c-text-1);
+  color: var(--mde-text-1);
 }
 
 .dialog-body {
@@ -108,36 +117,36 @@ function handleKeydown(e: KeyboardEvent) {
 .field-label {
   display: block;
   font-size: 13px;
-  color: var(--vp-c-text-2);
+  color: var(--mde-text-2);
   margin-bottom: 6px;
 }
 
 .commit-input {
   width: 100%;
   padding: 8px 12px;
-  border: 1px solid var(--vp-c-divider);
+  border: 1px solid var(--mde-divider);
   border-radius: 6px;
-  background: var(--vp-c-bg);
-  color: var(--vp-c-text-1);
+  background: var(--mde-bg);
+  color: var(--mde-text-1);
   font-size: 14px;
   outline: none;
   box-sizing: border-box;
 }
 
 .commit-input:focus {
-  border-color: var(--vp-c-brand);
+  border-color: var(--mde-brand);
 }
 
 .dialog-hint {
   margin: 8px 0 0;
   font-size: 12px;
-  color: var(--vp-c-text-3);
+  color: var(--mde-text-3);
 }
 
 .dialog-footer {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 10px;
 }
 
 .btn-cancel,
@@ -146,18 +155,18 @@ function handleKeydown(e: KeyboardEvent) {
   border-radius: 6px;
   font-size: 13px;
   cursor: pointer;
-  border: 1px solid var(--vp-c-divider);
+  border: 1px solid var(--mde-divider);
 }
 
 .btn-cancel {
-  background: var(--vp-c-bg);
-  color: var(--vp-c-text-2);
+  background: var(--mde-bg);
+  color: var(--mde-text-2);
 }
 
 .btn-confirm {
-  background: var(--vp-c-brand);
+  background: var(--mde-brand);
   color: #fff;
-  border-color: var(--vp-c-brand);
+  border-color: var(--mde-brand);
 }
 
 .btn-confirm:disabled {

@@ -1,69 +1,23 @@
 import { ref } from 'vue'
-import { parse as parseYaml, stringify as stringifyYaml } from 'yaml'
-import { useGitHubAPI } from './useGitHubAPI'
-import { useDrafts } from './useDrafts'
+import { assembleMarkdown, parseFrontmatter } from '../frontmatter'
+import { createDraftStore } from './useDrafts'
+import type { EditorStorage } from '../types'
 
-const LOCAL_EDIT = import.meta.env.DEV && import.meta.env.VITE_LOCALEDIT === '1'
-
-const localMdSources: Record<string, string> = LOCAL_EDIT
-  ? import.meta.glob('/**/*.md', { query: '?raw', import: 'default', eager: true })
-  : {}
-
-function getLocalContent(path: string): string {
-  const normalized = path.startsWith('docs/') ? path.slice(5) : path
-  const key = `/${normalized}`
-  return localMdSources[key] || localMdSources[path] || ''
-}
-
-interface ParsedFrontmatter {
-  frontmatter: Record<string, any>
-  body: string
-  error?: string
-}
-
-function parseFrontmatter(md: string): ParsedFrontmatter {
-  const normalized = md.replace(/\r\n?/g, '\n')
-  const match = normalized.match(/^---\n([\s\S]*?)\n---(?:\n|$)([\s\S]*)$/)
-  if (!match) return { frontmatter: {}, body: md }
-
-  try {
-    const parsed = parseYaml(match[1])
-    if (parsed === null || parsed === undefined) {
-      return { frontmatter: {}, body: match[2] || '' }
-    }
-    if (typeof parsed !== 'object' || Array.isArray(parsed)) {
-      throw new Error('文章属性必须是 YAML 对象')
-    }
-    return {
-      frontmatter: parsed as Record<string, any>,
-      body: match[2] || '',
-    }
-  } catch (error: any) {
-    const detail = error?.message ? `：${error.message}` : ''
-    return {
-      frontmatter: {},
-      body: match[2] || '',
-      error: `文章属性 YAML 无法解析${detail}`,
-    }
-  }
-}
-
-function buildFrontmatter(frontmatter: Record<string, any>): string {
-  const yaml = stringifyYaml(frontmatter, { lineWidth: 0 }).trimEnd()
-  return `---\n${yaml}\n---`
-}
-
-function assembleMarkdown(frontmatter: Record<string, any>, body: string): string {
-  return `${buildFrontmatter(frontmatter)}\n${body}`
+export interface EditSessionOptions {
+  storage: EditorStorage
+  draftStore?: ReturnType<typeof createDraftStore>
+  confirmAction?: (message: string) => boolean
 }
 
 function getErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback
 }
 
-export function useEditMode() {
-  const { readFile, createFile, updateFile } = useGitHubAPI()
-  const { loadDraft, saveDraft: persistDraft, deleteDraft } = useDrafts()
+export function createEditSession(options: EditSessionOptions) {
+  const { readFile, createFile, updateFile } = options.storage
+  const draftStore = options.draftStore ?? createDraftStore()
+  const confirmAction = options.confirmAction ?? ((message: string) => confirm(message))
+  const { loadDraft, saveDraft: persistDraft, deleteDraft } = draftStore
 
   const isEditing = ref(false)
   const filePath = ref('')
@@ -101,7 +55,7 @@ export function useEditMode() {
   async function initEditor(
     path: string,
     fallbackContent: string,
-    options: { expectNew?: boolean } = {},
+    initOptions: { expectNew?: boolean } = {},
   ): Promise<void> {
     const generation = ++loadGeneration
     filePath.value = path
@@ -119,10 +73,12 @@ export function useEditMode() {
     } catch (error) {
       if (generation !== loadGeneration) return
 
-      if (LOCAL_EDIT) {
-        const localContent = getLocalContent(path) || fallbackContent
+      const localContent = options.storage.readLocalFile?.(path, fallbackContent) ?? null
+      const notice = options.storage.localFileNotice
+
+      if (localContent !== null && notice) {
         applyContent(localContent, localContent, null, false)
-        loadError.value = '本地编辑模式未连接 GitHub，提交前需要有效的 GitHub 登录状态'
+        loadError.value = notice
         return
       }
 
@@ -135,13 +91,13 @@ export function useEditMode() {
 
     const isNew = remote === null
 
-    if (isNew && !options.expectNew) {
+    if (isNew && !initOptions.expectNew) {
       applyContent(fallbackContent, fallbackContent, null, false)
       loadError.value = '远程文章不存在，未进入新文件模式'
       return
     }
 
-    if (options.expectNew && remote) {
+    if (initOptions.expectNew && remote) {
       applyContent(fallbackContent, '', null, true)
       newFileConflict.value = true
       loadError.value = '目标文章路径已经存在，请返回并修改标题后再创建'
@@ -155,7 +111,7 @@ export function useEditMode() {
     const draft = loadDraft(path)
     if (draft) {
       const sameBase = draft.remoteSha === currentSha
-      const shouldRestore = sameBase || confirm(
+      const shouldRestore = sameBase || confirmAction(
         '远程文章已经更新，恢复草稿可能覆盖远程最新内容，是否继续？',
       )
 
@@ -185,6 +141,16 @@ export function useEditMode() {
     content.value = newContent
     frontmatterError.value = null
     isDirty.value = newContent !== originalContent.value
+  }
+
+  /*
+   * 正文编辑器直接改写正文部分。属性块由属性面板维护，因此这里保持
+   * frontmatter 不变，只重新拼装完整内容，避免覆盖用户尚未提交的属性修改。
+   */
+  function updateBody(nextBody: string): void {
+    bodyContent.value = nextBody
+    content.value = assembleMarkdown(frontmatter.value, nextBody)
+    isDirty.value = content.value !== originalContent.value
   }
 
   function saveDraft(): void {
@@ -255,7 +221,7 @@ export function useEditMode() {
       isDirty.value = false
       deleteDraft(filePath.value)
       return true
-    } catch (error: any) {
+    } catch (error) {
       if (await recoverRemoteWrite()) return true
 
       saveError.value = getErrorMessage(error, '提交失败')
@@ -270,6 +236,7 @@ export function useEditMode() {
     isEditing,
     filePath,
     content,
+    bodyContent,
     frontmatter,
     remoteSha,
     isDirty,
@@ -281,6 +248,7 @@ export function useEditMode() {
     newFileConflict,
     initEditor,
     updateContent,
+    updateBody,
     updateFrontmatter,
     saveDraft,
     commit,

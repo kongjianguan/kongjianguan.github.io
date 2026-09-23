@@ -8,6 +8,12 @@ dist
 # cache
 docs/.vitepress/cache
 
+# 根目录的 Vite 依赖预构建缓存
+.vitepress/
+
+# scratch space for local verification scripts and intermediate results
+.scratch/
+
 # superpowers internal docs
 docs/superpowers/
 specs/

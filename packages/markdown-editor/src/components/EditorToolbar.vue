@@ -7,6 +7,7 @@ defineProps<{
   isLoggedIn: boolean
   isNewFile: boolean
   canCommit?: boolean
+  emptyPathLabel?: string
 }>()
 
 const emit = defineEmits<{
@@ -20,7 +21,7 @@ const emit = defineEmits<{
   <div class="editor-toolbar">
     <div class="toolbar-left">
       <span v-if="title" class="toolbar-title">{{ title }}</span>
-      <span class="toolbar-path">{{ filePath || '(新建文件)' }}</span>
+      <span class="toolbar-path">{{ filePath || emptyPathLabel || '(新建文件)' }}</span>
     </div>
 
     <span v-if="!isLoggedIn" class="toolbar-status no-auth">需要登录</span>
@@ -65,13 +66,13 @@ const emit = defineEmits<{
 .toolbar-title {
   font-size: 13px;
   font-weight: 600;
-  color: var(--vp-c-text-1);
+  color: var(--mde-text-1);
   white-space: nowrap;
 }
 
 .toolbar-path {
   font-size: 11px;
-  color: var(--vp-c-text-3);
+  color: var(--mde-text-3);
   font-family: monospace;
   white-space: nowrap;
   overflow: hidden;
@@ -85,9 +86,9 @@ const emit = defineEmits<{
   white-space: nowrap;
 }
 
-.toolbar-status.dirty { color: var(--vp-c-yellow-1); }
-.toolbar-status.saving { color: var(--vp-c-brand-1); }
-.toolbar-status.no-auth { color: var(--vp-c-text-3); }
+.toolbar-status.dirty { color: var(--mde-warning); }
+.toolbar-status.saving { color: var(--mde-brand); }
+.toolbar-status.no-auth { color: var(--mde-text-3); }
 
 .toolbar-actions {
   display: flex;
@@ -103,7 +104,7 @@ const emit = defineEmits<{
   border: none;
   border-radius: 4px;
   background: none;
-  color: var(--vp-c-text-2);
+  color: var(--mde-text-2);
   cursor: pointer;
   font-size: 12px;
   line-height: 20px;
@@ -111,8 +112,8 @@ const emit = defineEmits<{
 }
 
 .tb-btn:hover:not(:disabled) {
-  color: var(--vp-c-text-1);
-  background: var(--vp-c-bg-soft);
+  color: var(--mde-text-1);
+  background: var(--mde-bg-soft);
 }
 
 .tb-btn:disabled {
@@ -121,12 +122,12 @@ const emit = defineEmits<{
 }
 
 .tb-btn-primary {
-  color: var(--vp-c-brand-1);
+  color: var(--mde-brand);
 }
 
 .tb-btn-primary:hover:not(:disabled) {
-  color: var(--vp-c-brand-2);
-  background: var(--vp-c-brand-soft);
+  color: var(--mde-brand-strong);
+  background: var(--mde-brand-soft);
 }
 
 @media (max-width: 767px) {

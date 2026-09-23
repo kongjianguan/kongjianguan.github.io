@@ -1,6 +1,8 @@
 <script setup lang="ts" name="FrontmatterPanel">
 const props = defineProps<{
   frontmatter: Record<string, any>
+  labels?: Partial<Record<'toggle' | 'title' | 'date' | 'categories' | 'tags' | 'permalink' | 'description', string>>
+  placeholders?: Partial<Record<'title' | 'categories' | 'tags' | 'permalink' | 'description', string>>
 }>()
 
 const emit = defineEmits<{
@@ -8,6 +10,32 @@ const emit = defineEmits<{
 }>()
 
 const collapsed = defineModel<boolean>('collapsed', { default: false })
+
+const defaultLabels = {
+  toggle: '文章属性',
+  title: '标题',
+  date: '日期',
+  categories: '分类',
+  tags: '标签',
+  permalink: '永久链接',
+  description: '摘要',
+}
+
+const defaultPlaceholders = {
+  title: '文章标题',
+  categories: '逗号分隔多个分类',
+  tags: '逗号分隔多个标签',
+  permalink: '/path/to/article',
+  description: '文章摘要...',
+}
+
+function label(key: keyof typeof defaultLabels): string {
+  return props.labels?.[key] ?? defaultLabels[key]
+}
+
+function placeholder(key: keyof typeof defaultPlaceholders): string {
+  return props.placeholders?.[key] ?? defaultPlaceholders[key]
+}
 
 function setField(key: string, value: any) {
   emit('update:frontmatter', { ...props.frontmatter, [key]: value })
@@ -29,22 +57,22 @@ function getArrayValue(key: string): string {
   <div class="fm-panel" :class="{ collapsed }">
     <button class="fm-toggle" @click="collapsed = !collapsed">
       <span class="fm-toggle-icon">{{ collapsed ? '>' : 'v' }}</span>
-      文章属性
+      {{ label('toggle') }}
     </button>
 
     <div v-show="!collapsed" class="fm-fields">
       <div class="fm-row">
-        <label class="fm-label">标题</label>
+        <label class="fm-label">{{ label('title') }}</label>
         <input
           class="fm-input"
           :value="frontmatter.title || ''"
           @input="setField('title', ($event.target as HTMLInputElement).value)"
-          placeholder="文章标题"
+          :placeholder="placeholder('title')"
         />
       </div>
 
       <div class="fm-row">
-        <label class="fm-label">日期</label>
+        <label class="fm-label">{{ label('date') }}</label>
         <input
           class="fm-input"
           type="datetime-local"
@@ -54,42 +82,42 @@ function getArrayValue(key: string): string {
       </div>
 
       <div class="fm-row">
-        <label class="fm-label">分类</label>
+        <label class="fm-label">{{ label('categories') }}</label>
         <input
           class="fm-input"
           :value="getArrayValue('categories')"
           @input="setArrayField('categories', ($event.target as HTMLInputElement).value)"
-          placeholder="逗号分隔多个分类"
+          :placeholder="placeholder('categories')"
         />
       </div>
 
       <div class="fm-row">
-        <label class="fm-label">标签</label>
+        <label class="fm-label">{{ label('tags') }}</label>
         <input
           class="fm-input"
           :value="getArrayValue('tags')"
           @input="setArrayField('tags', ($event.target as HTMLInputElement).value)"
-          placeholder="逗号分隔多个标签"
+          :placeholder="placeholder('tags')"
         />
       </div>
 
       <div class="fm-row">
-        <label class="fm-label">永久链接</label>
+        <label class="fm-label">{{ label('permalink') }}</label>
         <input
           class="fm-input"
           :value="frontmatter.permalink || ''"
           @input="setField('permalink', ($event.target as HTMLInputElement).value)"
-          placeholder="/path/to/article"
+          :placeholder="placeholder('permalink')"
         />
       </div>
 
       <div class="fm-row">
-        <label class="fm-label">摘要</label>
+        <label class="fm-label">{{ label('description') }}</label>
         <textarea
           class="fm-textarea"
           :value="frontmatter.description || ''"
           @input="setField('description', ($event.target as HTMLTextAreaElement).value)"
-          placeholder="文章摘要..."
+          :placeholder="placeholder('description')"
           rows="2"
         />
       </div>
@@ -99,10 +127,10 @@ function getArrayValue(key: string): string {
 
 <style scoped>
 .fm-panel {
-  border: 1px solid var(--vp-c-divider);
+  border: 1px solid var(--mde-divider);
   border-radius: 8px;
   margin-bottom: 12px;
-  background: var(--vp-c-bg-soft);
+  background: var(--mde-bg-soft);
   overflow: hidden;
 }
 
@@ -114,14 +142,14 @@ function getArrayValue(key: string): string {
   padding: 8px 12px;
   border: none;
   background: none;
-  color: var(--vp-c-text-2);
+  color: var(--mde-text-2);
   font-size: 13px;
   cursor: pointer;
   text-align: left;
 }
 
 .fm-toggle:hover {
-  background: var(--vp-c-bg-mute);
+  background: var(--mde-bg-mute);
 }
 
 .fm-toggle-icon {
@@ -141,7 +169,7 @@ function getArrayValue(key: string): string {
 .fm-label {
   display: block;
   font-size: 12px;
-  color: var(--vp-c-text-3);
+  color: var(--mde-text-3);
   margin-bottom: 3px;
 }
 
@@ -149,10 +177,10 @@ function getArrayValue(key: string): string {
 .fm-textarea {
   width: 100%;
   padding: 5px 8px;
-  border: 1px solid var(--vp-c-divider);
+  border: 1px solid var(--mde-divider);
   border-radius: 4px;
-  background: var(--vp-c-bg);
-  color: var(--vp-c-text-1);
+  background: var(--mde-bg);
+  color: var(--mde-text-1);
   font-size: 13px;
   outline: none;
   box-sizing: border-box;
@@ -161,7 +189,7 @@ function getArrayValue(key: string): string {
 
 .fm-input:focus,
 .fm-textarea:focus {
-  border-color: var(--vp-c-brand);
+  border-color: var(--mde-brand);
 }
 
 .fm-textarea {

@@ -50,6 +50,10 @@ jobs:
           pnpm dlx esbuild api/github/upload.ts --bundle --format=esm --platform=neutral --outfile=/tmp/kj-api-upload.mjs
       - name: Validate content
         run: pnpm validate:content
+      - name: Type-check markdown editor
+        run: pnpm typecheck
+      - name: Test markdown editor
+        run: pnpm test
       - name: Build with VitePress
         run: pnpm build
       - name: Upload artifact
