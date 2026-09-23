@@ -62,10 +62,9 @@ function parseMathBlock(cx: BlockContext, line: Line): boolean {
   const start = cx.lineStart + line.pos
 
   // 单行形式：$$...$$
-  const rest = text.slice(2)
-  const trimmed = rest.trimEnd()
-  if (trimmed.length >= 2 && trimmed.endsWith('$$')) {
-    const end = start + 2 + trimmed.length
+  const rest = text.slice(2).trimEnd()
+  if (rest.length >= 2 && rest.endsWith('$$')) {
+    const end = start + 2 + rest.length
     cx.addElement(cx.elt('MathBlock', start, end, [
       cx.elt('DollarMark', start, start + 2),
       cx.elt('MathContent', start + 2, end - 2),
@@ -75,23 +74,33 @@ function parseMathBlock(cx: BlockContext, line: Line): boolean {
     return true
   }
 
-  // 跨行形式：向下寻找以 $$ 结束的行
-  while (cx.nextLine()) {
-    const next = cx.peekLine()
-    if (next.trimEnd().endsWith('$$')) {
-      // 结束行本身也被消费，prevLineEnd 即该行末尾
-      const end = cx.prevLineEnd() + next.length
-      const contentEnd = cx.prevLineEnd() + next.trimEnd().length - 2
+  /*
+   * 跨行形式：逐行向下寻找以 $$ 结束的行。消费顺序与内置的 FencedCode 一致：
+   * 先 nextLine 推进到下一行，在结束行上取缩进后的行尾作为结束位置，再 nextLine
+   * 把结束行本身消费掉。cx.lineStart 在 nextLine 之后已经指向当前行行首。
+   */
+  for (;;) {
+    if (!cx.nextLine()) break
+    const closing = line.text.trimEnd()
+    if (closing.length >= 2 && closing.endsWith('$$')) {
+      const end = cx.lineStart + closing.length
       cx.addElement(cx.elt('MathBlock', start, end, [
         cx.elt('DollarMark', start, start + 2),
-        cx.elt('MathContent', start + 2, Math.max(start + 2, contentEnd)),
+        cx.elt('MathContent', start + 2, end - 2),
         cx.elt('DollarMark', end - 2, end),
       ]))
       cx.nextLine()
       return true
     }
   }
-  return false
+
+  // 未闭合时按围栏代码的处理方式，把余下内容整体作为公式块，避免正文失去语法树。
+  const end = cx.prevLineEnd()
+  cx.addElement(cx.elt('MathBlock', start, end, [
+    cx.elt('DollarMark', start, start + 2),
+    cx.elt('MathContent', start + 2, Math.max(start + 2, end)),
+  ]))
+  return true
 }
 
 export const mathExtension: MarkdownConfig = {

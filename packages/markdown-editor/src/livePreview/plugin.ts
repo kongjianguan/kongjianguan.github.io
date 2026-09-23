@@ -104,8 +104,13 @@ export function parseImageSyntax(raw: string): { src: string; alt: string } | nu
   return { alt: match[1] || '图片', src: match[2] || match[3] || '' }
 }
 
-/* 找到包裹当前节点的可展开结构，用于判断整段语法是否展开。 */
-function findRevealScope(node: SyntaxNode): MarkerRange {
+/*
+ * 找到包裹当前节点的可展开结构，用于判断整段语法是否展开。
+ * 返回 null 表示这个节点不属于任何可展开结构，此时不做隐藏：
+ * 正文里的裸地址（`正文 https://a.b 结束`）以及引用式链接的定义行都属此类，
+ * 按节点自身区间隐藏会把可见文字整段抹掉。
+ */
+function findRevealScope(node: SyntaxNode): MarkerRange | null {
   let current: SyntaxNode | null = node
   while (current) {
     if (REVEAL_SCOPE_NODES.has(current.name)) {
@@ -113,7 +118,7 @@ function findRevealScope(node: SyntaxNode): MarkerRange {
     }
     current = current.parent
   }
-  return { from: node.from, to: node.to }
+  return null
 }
 
 function lineRangeAt(state: EditorState, pos: number): MarkerRange {
@@ -161,12 +166,14 @@ export function buildDecorations(state: EditorState): DecorationSet {
       }
 
       if (name === 'ListMark') {
-        const line = lineRangeAt(state, from)
-        if (intersectsSelection(line.from, line.to, ranges, 0)) return
+        /*
+         * 判定范围是标记自身，标题与引用才用整行判定。
+         * 光标落在条目正文里时标记被替换为项目符号，落在标记上或紧邻其后时才显示源码。
+         * 只替换标记字符，保留其后的空格，收起后与渲染结果一样是「符号 + 空格 + 正文」。
+         */
+        if (intersectsSelection(from, to, ranges, 0)) return
         const raw = state.doc.sliceString(from, to)
-        // 列表符号与其后的空格一并替换为圆点，避免多余空白。
-        const next = state.doc.sliceString(to, to + 1)
-        builder.add(from, next === ' ' ? to + 1 : to, Decoration.replace({
+        builder.add(from, to, Decoration.replace({
           widget: new BulletWidget(/^\d+[.)]$/.test(raw) ? raw : null),
         }))
         return
@@ -175,7 +182,7 @@ export function buildDecorations(state: EditorState): DecorationSet {
       if (HIDDEN_MARK_NODES.has(name) || name === 'URL' || name === 'LinkTitle' || name === 'LinkLabel') {
         // 由所属结构的范围决定：光标进入该结构时显示标记，离开则收起。
         const scope = findRevealScope(node.node)
-        if (!intersectsSelection(scope.from, scope.to, ranges, 0)) {
+        if (scope && !intersectsSelection(scope.from, scope.to, ranges, 0)) {
           builder.add(from, to, hiddenMark)
         }
       }

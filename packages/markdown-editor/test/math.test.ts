@@ -133,3 +133,40 @@ describe('parseImageSyntax', () => {
     expect(parseImageSyntax('普通文字')).toBeNull()
   })
 })
+
+describe('跨行块级公式', () => {
+  it('结束位置覆盖到第二个 $$ 之后', () => {
+    const doc = '$$\ny = 1\n$$\n后续段落\n'
+    expect(tree(doc).find(node => node.name === 'MathBlock')?.text).toBe('$$\ny = 1\n$$')
+  })
+
+  it('公式之后的正文仍然进入语法树', () => {
+    // 结束位置算错会把解析树截断，后续标题与强调都不再被识别
+    const doc = '# 标题\n\n$$\ny = 1\n$$\n\n## 后续标题\n\n**粗体** 段落\n'
+    const nodeNames = names(doc)
+    expect(nodeNames).toContain('MathBlock')
+    expect(nodeNames).toContain('ATXHeading2')
+    expect(nodeNames).toContain('StrongEmphasis')
+  })
+
+  it('公式内容整体保留换行', () => {
+    const doc = '$$\nE = mc^2\n$$\n'
+    expect(tree(doc).find(node => node.name === 'MathContent')?.text).toBe('\nE = mc^2\n')
+  })
+
+  it('未闭合的 $$ 按围栏规则把余下内容当作公式块，语法树不残缺', () => {
+    const doc = '$$\n未闭合\n\n## 标题\n'
+    // 覆盖到文档末尾，不存在「有内容却不在语法树里」的空洞
+    expect(tree(doc).find(node => node.name === 'MathBlock')?.text).toBe(doc)
+  })
+
+  it('补上结束行之后，公式后面的标题重新被识别', () => {
+    expect(names('$$\n未闭合\n$$\n\n## 标题\n')).toContain('ATXHeading2')
+  })
+
+  it('单行形式保持原有解析结果', () => {
+    const doc = '$$a+b$$\n\n后续段落\n'
+    expect(tree(doc).find(node => node.name === 'MathBlock')?.text).toBe('$$a+b$$')
+    expect(names(doc)).toContain('Paragraph')
+  })
+})

@@ -212,18 +212,86 @@ describe('代码块与公式内部不受影响', () => {
   })
 })
 
+describe('正文中的裸地址', () => {
+  it('裸地址不产生任何隐藏装饰', () => {
+    const doc = '正文 https://c.d 结束\n'
+    expect(hidden(stateOf(doc, doc.length))).toEqual([])
+  })
+
+  it('裸地址在光标位于别处时仍然可见', () => {
+    const doc = '正文 https://c.d 结束\n'
+    const start = doc.indexOf('https')
+    expect(isHidden(stateOf(doc, doc.length), start, start + 'https://c.d'.length)).toBe(false)
+  })
+
+  it('属于链接的地址仍然按链接整体收起', () => {
+    const doc = '见 [文字](https://a.b) 结束'
+    const start = doc.indexOf('https')
+    expect(isHidden(stateOf(doc, 0), start, start + 'https://a.b'.length)).toBe(true)
+  })
+
+  it('引用式链接的定义行不丢失文字', () => {
+    const doc = '[文字][引用]\n\n[引用]: https://a.b "标题"\n'
+    const state = stateOf(doc, doc.length)
+    // 定义行里的地址属于定义本身，不应被隐藏
+    const definition = doc.indexOf('https://a.b')
+    expect(isHidden(state, definition, definition + 'https://a.b'.length)).toBe(false)
+  })
+
+  it('引用式链接的使用处仍然按链接整体收起', () => {
+    const doc = '[文字][引用]\n\n[引用]: https://a.b "标题"\n'
+    // 光标停在定义行上，使用处的链接整体收起，只留下「文字」
+    const state = stateOf(doc, doc.length)
+    expect(isHidden(state, 0, 1)).toBe(true)
+    expect(isHidden(state, 3, 4)).toBe(true)
+    expect(isHidden(state, 4, 8)).toBe(true)
+  })
+
+  it('定义行整体保持可见，不会塌陷成一个空格', () => {
+    const doc = '[文字][引用]\n\n[引用]: https://a.b "标题"\n'
+    const state = stateOf(doc, doc.length)
+    const line = state.doc.lineAt(doc.indexOf('[引用]:'))
+    const cuts = hidden(state).filter(([from]) => from >= line.from && from <= line.to)
+    expect(cuts).toEqual([])
+  })
+})
+
 describe('列表标记', () => {
   it('无序列表符号收起时替换为圆点', () => {
     const doc = '- 第一项\n- 第二项\n\n正文'
     const state = stateOf(doc, doc.indexOf('正文'))
-    // 列表符号与其后的空格一起替换为圆点
-    expect(isHidden(state, 0, 2)).toBe(true)
-    expect(isHidden(state, 6, 8)).toBe(true)
+    // 只替换标记字符本身，其后的空格保留
+    expect(isHidden(state, 0, 1)).toBe(true)
+    expect(isHidden(state, 6, 7)).toBe(true)
   })
 
-  it('光标在列表行时保留原始符号', () => {
+  it('光标停在条目正文中时标记收起为项目符号', () => {
+    // 判定范围是标记自身，与标题的整行判定不同
     const doc = '- 第一项\n- 第二项'
-    expect(isHidden(stateOf(doc, 3), 0, 2)).toBe(false)
+    expect(isHidden(stateOf(doc, 3), 0, 1)).toBe(true)
+  })
+
+  it('光标落在标记字符上时显示源码', () => {
+    const doc = '- 第一项\n- 第二项'
+    expect(isHidden(stateOf(doc, 0), 0, 1)).toBe(false)
+  })
+
+  it('光标紧邻标记之后时显示源码', () => {
+    const doc = '- 第一项\n- 第二项'
+    expect(isHidden(stateOf(doc, 1), 0, 1)).toBe(false)
+  })
+
+  it('光标位于标记之后第二位时标记收起', () => {
+    const doc = '- 第一项\n- 第二项'
+    expect(isHidden(stateOf(doc, 2), 0, 1)).toBe(true)
+  })
+
+  it('有序列表标记连同序号一起判定', () => {
+    const doc = '1. 第一\n2. 第二'
+    // ListMark 覆盖 "1."，光标落在序号里时显示源码
+    expect(isHidden(stateOf(doc, 0), 0, 2)).toBe(false)
+    // 光标进入正文后收起
+    expect(isHidden(stateOf(doc, 4), 0, 2)).toBe(true)
   })
 
   it('有序列表保留序号而不是圆点', () => {
@@ -232,6 +300,13 @@ describe('列表标记', () => {
     const bullets = Array.from(view.dom.querySelectorAll('.mde-list-bullet'))
       .map(element => element.textContent)
     expect(bullets).toEqual(['1.', '2.'])
+    cleanup()
+  })
+
+  it('收起后的项目符号与正文之间保留一个空格', () => {
+    const doc = '- 项目内容\n\n正文'
+    const { view, cleanup } = render(doc, doc.indexOf('正文'))
+    expect(view.dom.querySelector('.cm-line')?.textContent).toBe('• 项目内容')
     cleanup()
   })
 })
