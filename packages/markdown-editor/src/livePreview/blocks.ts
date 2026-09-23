@@ -170,6 +170,32 @@ class TableWidget extends WidgetType {
   }
 }
 
+/* 块级公式在光标离开时按展示公式呈现：整块居中，定界符不再出现。 */
+class MathBlockWidget extends WidgetType {
+  constructor(
+    private readonly source: string,
+    private readonly formula: string,
+  ) {
+    super()
+  }
+
+  override eq(other: MathBlockWidget): boolean {
+    return other.source === this.source
+  }
+
+  override toDOM(): HTMLElement {
+    const block = document.createElement('div')
+    block.className = 'mde-math'
+    // 公式源码按原样呈现，站点在阅读态用 MathJax 排版
+    block.textContent = this.formula
+    return block
+  }
+
+  override ignoreEvent(): boolean {
+    return false
+  }
+}
+
 function buildBlockDecorations(state: EditorState): DecorationSet {
   const ranges: MarkerRange[] = state.selection.ranges.map(range => ({
     from: range.from,
@@ -194,6 +220,18 @@ function buildBlockDecorations(state: EditorState): DecorationSet {
           doc.sliceString(from, to),
         )
         builder.add(from, to, Decoration.replace({ widget, block: true }))
+        return
+      }
+
+      if (node.name === 'MathBlock') {
+        if (intersectsSelection(from, to, ranges, 0)) return
+        const source = doc.sliceString(from, to)
+        // 去掉首尾定界符与紧邻的换行，剩下的就是公式内容
+        const formula = source.replace(/^\$\$/, '').replace(/\$\$$/, '').trim()
+        builder.add(from, to, Decoration.replace({
+          widget: new MathBlockWidget(source, formula),
+          block: true,
+        }))
         return
       }
 

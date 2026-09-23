@@ -142,7 +142,6 @@ const REVEAL_SCOPE_NODES = new Set([
   'Superscript',
   'InlineCode',
   'Math',
-  'MathBlock',
   'Link',
   'Image',
   'Autolink',
@@ -173,6 +172,16 @@ function findRevealScope(node: SyntaxNode): MarkerRange | null {
     current = current.parent
   }
   return null
+}
+
+/* 判断节点是否处于某个结构之内 */
+function hasAncestor(node: SyntaxNode, name: string): boolean {
+  let current: SyntaxNode | null = node.parent
+  while (current) {
+    if (current.name === name) return true
+    current = current.parent
+  }
+  return false
 }
 
 function lineRangeAt(state: EditorState, pos: number): MarkerRange {
@@ -277,6 +286,8 @@ export function buildDecorations(state: EditorState): DecorationSet {
       }
 
       if (HIDDEN_MARK_NODES.has(name) || name === 'URL' || name === 'LinkTitle' || name === 'LinkLabel') {
+        // 块级公式整块由块级模块处理，定界符不再单独隐藏
+        if (name === 'DollarMark' && hasAncestor(node.node, 'MathBlock')) return
         // 由所属结构的范围决定：光标进入该结构时显示标记，离开则收起。
         const scope = findRevealScope(node.node)
         if (scope && !intersectsSelection(scope.from, scope.to, ranges, 0)) {

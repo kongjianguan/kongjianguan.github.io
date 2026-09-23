@@ -73,6 +73,16 @@ export const editorTheme = EditorView.theme({
   '.mde-table code': {
     fontFamily: 'var(--mde-font-mono)',
   },
+  '.mde-math': {
+    display: 'block',
+    margin: '12px 0',
+    padding: '12px',
+    textAlign: 'center',
+    fontFamily: 'var(--mde-font-mono)',
+    backgroundColor: 'var(--mde-bg-soft)',
+    borderRadius: '6px',
+    whiteSpace: 'pre-wrap',
+  },
   '.mde-image': {
     display: 'block',
     maxWidth: '100%',

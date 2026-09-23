@@ -456,6 +456,41 @@ describe('表格', () => {
   })
 })
 
+describe('块级公式', () => {
+  it('光标离开时整块按展示公式呈现', () => {
+    const doc = '正文\n\n$$\na+b\n$$\n\n尾部\n'
+    const { view, cleanup } = render(doc, 0)
+    const block = view.dom.querySelector('.mde-math')
+    expect(block).not.toBeNull()
+    expect(block!.textContent).toBe('a+b')
+    // 定界符与公式源码都不再留在正文里
+    expect(view.dom.textContent).not.toContain('$$')
+    cleanup()
+  })
+
+  it('光标进入公式块时恢复源码', () => {
+    const doc = '正文\n\n$$\na+b\n$$\n\n尾部\n'
+    const { view, cleanup } = render(doc, doc.indexOf('a+b'))
+    expect(view.dom.querySelector('.mde-math')).toBeNull()
+    expect(view.dom.textContent).toContain('$$')
+    cleanup()
+  })
+
+  it('单行块级公式同样按展示公式呈现', () => {
+    const doc = '正文\n\n$$a+b$$\n\n尾部\n'
+    const { view, cleanup } = render(doc, 0)
+    expect(view.dom.querySelector('.mde-math')?.textContent).toBe('a+b')
+    cleanup()
+  })
+
+  it('公式之后的正文不再被吞掉', () => {
+    const doc = '正文\n\n$$\na+b\n$$\n\n## 后续标题\n\n尾部\n'
+    const { view, cleanup } = render(doc, 0)
+    expect(view.dom.textContent).toContain('后续标题')
+    cleanup()
+  })
+})
+
 describe('Setext 标题', () => {
   const doc = '标题文字\n=====\n\n正文\n'
 
