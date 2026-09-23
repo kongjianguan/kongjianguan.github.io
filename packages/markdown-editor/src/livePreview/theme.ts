@@ -43,6 +43,36 @@ export const editorTheme = EditorView.theme({
   '.mde-list-bullet': {
     color: 'var(--mde-text-2)',
   },
+  '.mde-task': {
+    margin: '0 0.35em 0 0',
+    verticalAlign: 'middle',
+    cursor: 'pointer',
+  },
+  '.mde-rule': {
+    display: 'inline-block',
+    width: '100%',
+    height: '1px',
+    verticalAlign: 'middle',
+    backgroundColor: 'var(--mde-divider)',
+  },
+  '.mde-table': {
+    width: '100%',
+    margin: '8px 0',
+    borderCollapse: 'collapse',
+    fontSize: '14px',
+  },
+  '.mde-table th, .mde-table td': {
+    padding: '6px 12px',
+    border: '1px solid var(--mde-divider)',
+    textAlign: 'left',
+  },
+  '.mde-table th': {
+    backgroundColor: 'var(--mde-bg-soft)',
+    fontWeight: '600',
+  },
+  '.mde-table code': {
+    fontFamily: 'var(--mde-font-mono)',
+  },
   '.mde-image': {
     display: 'block',
     maxWidth: '100%',

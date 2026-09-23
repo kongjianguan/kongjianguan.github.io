@@ -5,6 +5,7 @@ import { syntaxTree } from '@codemirror/language'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { mathExtension } from '../src/livePreview/math'
 import { buildDecorations, livePreview } from '../src/livePreview/plugin'
+import { exitEmptyListItem } from '../src/livePreview/commands'
 
 /*
  * 在真实编辑器状态上检查「光标进入才显示标记」的行为。
@@ -362,5 +363,217 @@ describe('渲染结果', () => {
     expect(view.dom.querySelector('img.mde-image')).toBeNull()
     expect(view.dom.textContent).toContain('![替代](/images/a.png)')
     cleanup()
+  })
+})
+
+describe('空列表项上的回车', () => {
+  function applyExit(doc: string, cursor: number) {
+    const state = stateOf(doc, cursor)
+    let next: EditorState | null = null
+    const handled = exitEmptyListItem({
+      state,
+      dispatch: transaction => {
+        next = transaction.state
+      },
+    })
+    const applied = next as EditorState | null
+    return {
+      handled,
+      doc: applied ? applied.doc.toString() : null,
+      cursor: applied ? applied.selection.main.from : null,
+    }
+  }
+
+  it('空条目上回车清掉标记并结束列表', () => {
+    const result = applyExit('- 一\n- ', 6)
+    expect(result.handled).toBe(true)
+    expect(result.doc).toBe('- 一\n')
+    expect(result.cursor).toBe(4)
+  })
+
+  it('单独一个空条目上回车清空该行', () => {
+    const result = applyExit('- ', 2)
+    expect(result.handled).toBe(true)
+    expect(result.doc).toBe('')
+  })
+
+  it('条目有内容时不接管回车', () => {
+    expect(applyExit('- 一', 3).handled).toBe(false)
+  })
+
+  it('有序列表的空条目同样处理', () => {
+    const result = applyExit('1. 一\n2. ', 8)
+    expect(result.handled).toBe(true)
+    expect(result.doc).toBe('1. 一\n')
+  })
+
+  it('普通段落不接管回车', () => {
+    expect(applyExit('正文\n\n另一行', 2).handled).toBe(false)
+  })
+
+  it('反缩进的空条目同样被清掉', () => {
+    const result = applyExit('- 一\n  - ', 8)
+    expect(result.handled).toBe(true)
+    expect(result.doc).toBe('- 一\n')
+  })
+})
+
+describe('表格', () => {
+  const doc = '| 甲 | 乙 |\n| :--- | ---: |\n| 1 | **粗体** |\n\n正文\n'
+
+  it('光标离开表格时渲染为真实表格', () => {
+    const { view, cleanup } = render(doc, doc.indexOf('正文'))
+    const table = view.dom.querySelector('table.mde-table')
+    expect(table).not.toBeNull()
+    const heads = Array.from(table!.querySelectorAll('th')).map(cell => cell.textContent)
+    expect(heads).toEqual(['甲', '乙'])
+    const cells = Array.from(table!.querySelectorAll('tbody td'))
+    expect(cells.map(cell => cell.textContent)).toEqual(['1', '粗体'])
+    // 单元格内的强调按渲染结果处理，星号不出现
+    expect(cells[1].querySelector('strong')).not.toBeNull()
+    cleanup()
+  })
+
+  it('分隔行与竖线不再留在正文里', () => {
+    const { view, cleanup } = render(doc, doc.indexOf('正文'))
+    expect(view.dom.textContent).not.toContain('---')
+    cleanup()
+  })
+
+  it('对齐方式按分隔行的冒号设置', () => {
+    const { view, cleanup } = render(doc, doc.indexOf('正文'))
+    const heads = Array.from(view.dom.querySelectorAll('th')) as HTMLElement[]
+    expect(heads[0].style.textAlign).toBe('left')
+    expect(heads[1].style.textAlign).toBe('right')
+    cleanup()
+  })
+
+  it('光标进入表格时恢复源码', () => {
+    const { view, cleanup } = render(doc, doc.indexOf('甲'))
+    expect(view.dom.querySelector('table.mde-table')).toBeNull()
+    expect(view.dom.textContent).toContain('| 甲 | 乙 |')
+    cleanup()
+  })
+})
+
+describe('Setext 标题', () => {
+  const doc = '标题文字\n=====\n\n正文\n'
+
+  it('光标离开标题块时下划线整行消失', () => {
+    const { view, cleanup } = render(doc, doc.indexOf('正文'))
+    expect(view.dom.textContent).not.toContain('=====')
+    // 下划线行被整行移除，只留下源文本里本来就有的空行
+    const lines = Array.from(view.dom.querySelectorAll('.cm-line'))
+      .map(line => line.textContent)
+    expect(lines).toEqual(['标题文字', '', '正文', ''])
+    cleanup()
+  })
+
+  it('光标位于标题文字行时保留下划线', () => {
+    const { view, cleanup } = render(doc, 1)
+    expect(view.dom.textContent).toContain('=====')
+    cleanup()
+  })
+
+  it('光标位于下划线行时保留下划线', () => {
+    const { view, cleanup } = render(doc, doc.indexOf('====='))
+    expect(view.dom.textContent).toContain('=====')
+    cleanup()
+  })
+})
+
+describe('任务列表', () => {
+  it('任务项收起时渲染为复选框，不再显示圆点与方括号', () => {
+    const doc = '- [ ] 待办\n- [x] 完成\n\n正文'
+    const { view, cleanup } = render(doc, doc.indexOf('正文'))
+    const boxes = Array.from(view.dom.querySelectorAll<HTMLInputElement>('input.mde-task'))
+    expect(boxes).toHaveLength(2)
+    expect(boxes[0].checked).toBe(false)
+    expect(boxes[1].checked).toBe(true)
+    // 标记让位给复选框
+    expect(view.dom.querySelector('.mde-list-bullet')).toBeNull()
+    expect(view.dom.textContent).not.toContain('[ ]')
+    expect(view.dom.textContent).not.toContain('[x]')
+    cleanup()
+  })
+
+  it('光标落在复选框上时显示原始标记', () => {
+    const doc = '- [ ] 待办\n\n正文'
+    const { view, cleanup } = render(doc, 2)
+    expect(view.dom.querySelector('input.mde-task')).toBeNull()
+    expect(view.dom.textContent).toContain('[ ]')
+    cleanup()
+  })
+
+  it('普通列表项仍然渲染为圆点', () => {
+    const doc = '- 普通项\n\n正文'
+    const { view, cleanup } = render(doc, doc.indexOf('正文'))
+    expect(view.dom.querySelector('input.mde-task')).toBeNull()
+    expect(view.dom.querySelector('.mde-list-bullet')).not.toBeNull()
+    cleanup()
+  })
+
+  it('点击复选框切换完成状态', () => {
+    const doc = '- [ ] 待办\n- [x] 完成\n\n正文'
+    const { view, cleanup } = render(doc, doc.indexOf('正文'))
+    const boxes = view.dom.querySelectorAll<HTMLInputElement>('input.mde-task')
+    expect(view.state.doc.toString()).toContain('- [ ] 待办')
+
+    boxes[0].click()
+    expect(view.state.doc.toString()).toContain('- [x] 待办')
+
+    // 再点一次回到未完成
+    view.dom.querySelectorAll<HTMLInputElement>('input.mde-task')[0].click()
+    expect(view.state.doc.toString()).toContain('- [ ] 待办')
+    cleanup()
+  })
+})
+
+describe('水平分割线', () => {
+  it('光标不在该行时渲染为细线', () => {
+    const doc = '上文\n\n---\n\n下文'
+    const { view, cleanup } = render(doc, 0)
+    expect(view.dom.querySelector('.mde-rule')).not.toBeNull()
+    expect(view.dom.textContent).not.toContain('---')
+    cleanup()
+  })
+
+  it('光标移到该行时显示源码', () => {
+    const doc = '上文\n\n---\n\n下文'
+    const { view, cleanup } = render(doc, doc.indexOf('---'))
+    expect(view.dom.querySelector('.mde-rule')).toBeNull()
+    expect(view.dom.textContent).toContain('---')
+    cleanup()
+  })
+})
+
+describe('转义与上下标', () => {
+  it('收起时隐藏反斜杠并保留被转义字符', () => {
+    const doc = '普通 \\*星号\\* 结束\n\n正文'
+    const { view, cleanup } = render(doc, doc.length)
+    expect(view.dom.textContent).toContain('普通 *星号* 结束')
+    cleanup()
+  })
+
+  it('光标在该行时显示反斜杠', () => {
+    const doc = '普通 \\*星号\\* 结束\n\n正文'
+    const { view, cleanup } = render(doc, 3)
+    expect(view.dom.textContent).toContain('\\*星号\\*')
+    cleanup()
+  })
+
+  it('上下标标记在光标离开时隐藏', () => {
+    const doc = 'H~2~O 与 x^2^\n\n正文'
+    const state = stateOf(doc, doc.length)
+    expect(isHidden(state, 1, 2)).toBe(true)
+    expect(isHidden(state, 3, 4)).toBe(true)
+    expect(isHidden(state, 9, 10)).toBe(true)
+  })
+
+  it('光标进入上下标时显示标记', () => {
+    const doc = 'H~2~O 与 x^2^\n\n正文'
+    const state = stateOf(doc, 2)
+    expect(isHidden(state, 1, 2)).toBe(false)
+    expect(isHidden(state, 3, 4)).toBe(false)
   })
 })

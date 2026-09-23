@@ -10,6 +10,7 @@ import {
 import { syntaxTree } from '@codemirror/language'
 import type { SyntaxNode } from '@lezer/common'
 import { intersectsSelection, isVerbatimContext, type MarkerRange } from './model'
+import { blockPreview } from './blocks'
 
 /*
  * 实时预览：光标不落在某段标记内时把它隐藏，使正文看起来接近渲染结果；
@@ -65,6 +66,55 @@ class ImageWidget extends WidgetType {
   }
 }
 
+/* 任务列表的复选框，点击切换 `[ ]` 与 `[x]`。 */
+class TaskWidget extends WidgetType {
+  constructor(private readonly checked: boolean) {
+    super()
+  }
+
+  override eq(other: TaskWidget): boolean {
+    return other.checked === this.checked
+  }
+
+  override toDOM(view: EditorView): HTMLElement {
+    const input = document.createElement('input')
+    input.type = 'checkbox'
+    input.className = 'mde-task'
+    input.checked = this.checked
+    input.addEventListener('click', event => {
+      event.preventDefault()
+      // 位置在点击时重新求取，避免部件被复用后坐标过期。
+      const pos = view.posAtDOM(input)
+      view.dispatch({
+        changes: { from: pos, to: pos + 3, insert: this.checked ? '[ ]' : '[x]' },
+      })
+    })
+    return input
+  }
+
+  /* 返回 true 让编辑器不接管点击，勾选动作由部件自己处理 */
+  override ignoreEvent(): boolean {
+    return true
+  }
+}
+
+/* 水平分割线用一个占满整行的细线替代源码。 */
+class RuleWidget extends WidgetType {
+  override eq(): boolean {
+    return true
+  }
+
+  override toDOM(): HTMLElement {
+    const rule = document.createElement('span')
+    rule.className = 'mde-rule'
+    return rule
+  }
+
+  override ignoreEvent(): boolean {
+    return false
+  }
+}
+
 /*
  * 这些节点属于纯语法标记，光标不落在其所属结构内时隐藏。
  * DollarMark 是公式的美元定界符，与强调标记同样处理。
@@ -75,6 +125,8 @@ const HIDDEN_MARK_NODES = new Set([
   'DollarMark',
   'CodeMark',
   'LinkMark',
+  'SubscriptMark',
+  'SuperscriptMark',
 ])
 
 /*
@@ -86,6 +138,8 @@ const REVEAL_SCOPE_NODES = new Set([
   'StrongEmphasis',
   'Emphasis',
   'Strikethrough',
+  'Subscript',
+  'Superscript',
   'InlineCode',
   'Math',
   'MathBlock',
@@ -156,6 +210,9 @@ export function buildDecorations(state: EditorState): DecorationSet {
       }
 
       if (name === 'HeaderMark' || name === 'QuoteMark') {
+        // Setext 标题的下划线由块级模块整行处理，这里只接手行首标记
+        const parent = node.node.parent
+        if (parent?.name === 'SetextHeading1' || parent?.name === 'SetextHeading2') return
         // 行首标记随光标所在行显示。连同标记后的一个空格一起隐藏，
         // 收起后标题与引用文字紧贴行首，与渲染结果一致。
         const line = lineRangeAt(state, from)
@@ -171,11 +228,51 @@ export function buildDecorations(state: EditorState): DecorationSet {
          * 光标落在条目正文里时标记被替换为项目符号，落在标记上或紧邻其后时才显示源码。
          * 只替换标记字符，保留其后的空格，收起后与渲染结果一样是「符号 + 空格 + 正文」。
          */
+        const item = node.node.parent
+        const isTask = item?.name === 'ListItem' && item.getChild('Task') !== null
         if (intersectsSelection(from, to, ranges, 0)) return
+        if (isTask) {
+          // 任务项由复选框接管，标记连同其后的空格一起让位
+          const next = state.doc.sliceString(to, to + 1)
+          builder.add(from, next === ' ' ? to + 1 : to, hiddenMark)
+          return
+        }
         const raw = state.doc.sliceString(from, to)
         builder.add(from, to, Decoration.replace({
           widget: new BulletWidget(/^\d+[.)]$/.test(raw) ? raw : null),
         }))
+        return
+      }
+
+      if (name === 'TaskMarker') {
+        // 与列表标记同粒度：光标落在复选框上时显示原始 `[ ]`
+        if (intersectsSelection(from, to, ranges, 0)) return
+        const raw = state.doc.sliceString(from, to)
+        builder.add(from, to, Decoration.replace({ widget: new TaskWidget(raw.slice(1, 2) !== ' ') }))
+        return
+      }
+
+      if (name === 'HorizontalRule') {
+        // 与标题一致，按光标所在行判定
+        const line = lineRangeAt(state, from)
+        if (intersectsSelection(line.from, line.to, ranges, 0)) return
+        builder.add(from, to, Decoration.replace({ widget: new RuleWidget() }))
+        return
+      }
+
+      if (name === 'Escape') {
+        // 隐藏反斜杠，保留被转义的字符本身
+        const line = lineRangeAt(state, from)
+        if (intersectsSelection(line.from, line.to, ranges, 0)) return
+        builder.add(from, from + 1, hiddenMark)
+        return
+      }
+
+      if (name === 'HardBreak') {
+        // 只隐藏行尾的反斜杠，换行本身保留为一次换行
+        const line = lineRangeAt(state, from)
+        if (intersectsSelection(line.from, line.to, ranges, 0)) return
+        builder.add(from, from + 1, hiddenMark)
         return
       }
 
@@ -215,6 +312,7 @@ const livePreviewPlugin = ViewPlugin.fromClass(
 export function livePreview(): Extension {
   return [
     livePreviewPlugin,
+    blockPreview(),
     EditorView.atomicRanges.of(view => view.plugin(livePreviewPlugin)?.decorations ?? Decoration.none),
   ]
 }
