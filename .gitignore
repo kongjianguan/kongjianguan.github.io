@@ -8,8 +8,8 @@ dist
 # cache
 docs/.vitepress/cache
 
-# 根目录的 Vite 依赖预构建缓存
-.vitepress/
+# 根目录的 Vite 依赖预构建缓存，只忽略仓库根下这一处
+/.vitepress/
 
 # scratch space for local verification scripts and intermediate results
 .scratch/
