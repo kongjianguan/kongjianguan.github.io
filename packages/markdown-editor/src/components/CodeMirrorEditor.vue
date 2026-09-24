@@ -5,7 +5,7 @@ import { EditorView, keymap, placeholder as placeholderExt } from '@codemirror/v
 import { history, historyKeymap, defaultKeymap, indentWithTab } from '@codemirror/commands'
 import { markdown, markdownKeymap, markdownLanguage } from '@codemirror/lang-markdown'
 import { livePreview } from '../livePreview/plugin'
-import { exitEmptyListItem } from '../livePreview/commands'
+import { exitEmptyBlock } from '../livePreview/commands'
 import { mathExtension } from '../livePreview/math'
 import { editorHighlighting, editorTheme } from '../livePreview/theme'
 
@@ -89,10 +89,10 @@ function buildExtensions(readOnly: boolean): Extension[] {
     }),
     /*
      * 回车延续列表与引用，标题行回车则另起一行。
-     * 空列表项上的回车由 exitEmptyListItem 先处理，使列表一次回车即结束。
+     * 空的列表项或引用行上的回车由 exitEmptyBlock 先处理，一次回车即结束这个块。
      */
     keymap.of([
-      { key: 'Enter', run: exitEmptyListItem },
+      { key: 'Enter', run: exitEmptyBlock },
       ...markdownKeymap,
     ]),
     keymap.of([

@@ -113,6 +113,22 @@ export const editorTheme = EditorView.theme({
     paddingTop: '8px',
     paddingBottom: '4px',
   },
+  /*
+   * 引用块的样子取自阅读态：左侧竖线、浅底、弱化文字。
+   * 阅读态把底色加在整个 blockquote 上，这里逐行加，连续的行自然连成一片。
+   */
+  '.mde-quote': {
+    borderLeft: '2px solid var(--mde-divider)',
+    paddingLeft: '16px',
+    color: 'var(--mde-text-2)',
+    backgroundColor: 'var(--mde-quote-bg)',
+  },
+  '.mde-quote-d2': {
+    paddingLeft: '32px',
+  },
+  '.mde-quote-d3': {
+    paddingLeft: '48px',
+  },
   '.mde-image': {
     display: 'block',
     maxWidth: '100%',

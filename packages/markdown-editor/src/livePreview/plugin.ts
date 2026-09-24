@@ -11,6 +11,7 @@ import { syntaxTree } from '@codemirror/language'
 import type { SyntaxNode } from '@lezer/common'
 import { intersectsSelection, isVerbatimContext, type MarkerRange } from './model'
 import { blockPreview } from './blocks'
+import { blockLines } from './blockLines'
 import { mathWidget } from './mathWidget'
 
 /*
@@ -174,21 +175,6 @@ function findRevealScope(node: SyntaxNode): MarkerRange | null {
   return null
 }
 
-/*
- * 标题行加上与阅读态接近的上下间距。阅读态用外边距排版，
- * 这里改用内边距，因为内边距计入行高测量，外边距不计入。
- */
-const HEADING_LINE_CLASS: Record<string, string> = {
-  ATXHeading1: 'mde-h1',
-  ATXHeading2: 'mde-h2',
-  ATXHeading3: 'mde-h3',
-  ATXHeading4: 'mde-h4',
-  ATXHeading5: 'mde-h5',
-  ATXHeading6: 'mde-h6',
-  SetextHeading1: 'mde-h1',
-  SetextHeading2: 'mde-h2',
-}
-
 /* 判断节点是否处于某个结构之内 */
 function hasAncestor(node: SyntaxNode, name: string): boolean {
   let current: SyntaxNode | null = node.parent
@@ -224,13 +210,6 @@ export function buildDecorations(state: EditorState): DecorationSet {
       if (isVerbatimContext(node.node.parent)) return
 
       const name = node.name
-
-      const headingClass = HEADING_LINE_CLASS[name]
-      if (headingClass) {
-        const line = state.doc.lineAt(from)
-        builder.add(line.from, line.from, Decoration.line({ class: `mde-heading ${headingClass}` }))
-        return
-      }
 
       if (name === 'Image') {
         if (intersectsSelection(from, to, ranges, 0)) return
@@ -360,6 +339,7 @@ const livePreviewPlugin = ViewPlugin.fromClass(
 export function livePreview(): Extension {
   return [
     livePreviewPlugin,
+    blockLines(),
     blockPreview(),
     EditorView.atomicRanges.of(view => view.plugin(livePreviewPlugin)?.decorations ?? Decoration.none),
   ]

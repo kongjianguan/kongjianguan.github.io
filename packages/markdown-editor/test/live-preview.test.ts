@@ -5,7 +5,7 @@ import { syntaxTree } from '@codemirror/language'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { mathExtension } from '../src/livePreview/math'
 import { buildDecorations, livePreview } from '../src/livePreview/plugin'
-import { exitEmptyListItem } from '../src/livePreview/commands'
+import { exitEmptyBlock } from '../src/livePreview/commands'
 
 /*
  * 在真实编辑器状态上检查「光标进入才显示标记」的行为。
@@ -395,7 +395,7 @@ describe('空列表项上的回车', () => {
   function applyExit(doc: string, cursor: number) {
     const state = stateOf(doc, cursor)
     let next: EditorState | null = null
-    const handled = exitEmptyListItem({
+    const handled = exitEmptyBlock({
       state,
       dispatch: transaction => {
         next = transaction.state

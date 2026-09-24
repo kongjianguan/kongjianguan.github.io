@@ -16,6 +16,7 @@
   --mde-danger: var(--vp-c-danger-1, #b8272c);
   --mde-danger-soft: var(--vp-c-danger-soft, rgba(244, 63, 94, 0.14));
   --mde-warning: var(--vp-c-yellow-1, #b7791f);
+  --mde-quote-bg: var(--vp-c-gray-soft, #f6f6f7);
   --mde-font-family: var(--vp-font-family-base, system-ui, sans-serif);
   --mde-font-mono: var(--vp-font-family-mono, ui-monospace, SFMono-Regular, monospace);
 }
