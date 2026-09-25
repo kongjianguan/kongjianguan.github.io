@@ -4,6 +4,7 @@ defineProps<{
   title: string
   isDirty: boolean
   isSaving: boolean
+  draftSaved: boolean
   isLoggedIn: boolean
   isNewFile: boolean
   canCommit?: boolean
@@ -26,6 +27,7 @@ const emit = defineEmits<{
 
     <span v-if="!isLoggedIn" class="toolbar-status no-auth">需要登录</span>
     <span v-else-if="isSaving" class="toolbar-status saving">提交中...</span>
+    <span v-else-if="draftSaved" class="toolbar-status">本机草稿已保存</span>
     <span v-else-if="isDirty" class="toolbar-status dirty">未保存</span>
 
     <div class="toolbar-actions">

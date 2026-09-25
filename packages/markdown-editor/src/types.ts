@@ -26,4 +26,5 @@ export interface DraftRecord {
   frontmatter: Record<string, unknown>
   savedAt: string
   remoteSha: string | null
+  images: Record<string, File>
 }

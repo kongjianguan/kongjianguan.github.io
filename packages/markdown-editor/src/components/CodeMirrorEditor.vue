@@ -58,13 +58,13 @@ function getImageAlt(file: File): string {
 }
 
 async function insertStagedImage(editor: EditorView, file: File): Promise<void> {
-  if (!props.stageImage) return
+  if (!props.stageImage || editor.state.readOnly) return
 
   const selection = editor.state.selection.main
   try {
     const url = await props.stageImage(file)
     if (!url) throw new Error('图片上传失败')
-    if (view !== editor) return
+    if (view !== editor || editor.state.readOnly) return
 
     const insert = `![${getImageAlt(file)}](${url})`
     const from = Math.min(selection.from, editor.state.doc.length)
@@ -127,6 +127,7 @@ function buildExtensions(readOnly: boolean): Extension[] {
     }),
     EditorView.domEventHandlers({
       paste: (event, editor) => {
+        if (editor.state.readOnly) return false
         const file = getClipboardImage(event)
         if (!file || !props.stageImage) return false
         event.preventDefault()
@@ -145,7 +146,7 @@ function createEditor(): void {
     state: EditorState.create({
       doc: props.modelValue,
       selection: { anchor: selection },
-      extensions: buildExtensions(false),
+      extensions: buildExtensions(props.readOnly),
     }),
     parent: editorRef.value,
   })

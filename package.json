@@ -9,6 +9,7 @@
     "build": "NODE_OPTIONS=--max-old-space-size=5120 vitepress build docs",
     "preview": "vitepress preview docs",
     "test": "pnpm --filter @kongjianguan/markdown-editor test",
+    "test:e2e": "PLAYWRIGHT_BROWSERS_PATH=.scratch/playwright-browsers playwright test",
     "typecheck": "pnpm --filter @kongjianguan/markdown-editor typecheck",
     "validate:api": "node scripts/validate-api-sources.mjs",
     "validate:content": "node scripts/validate-content.mjs"
@@ -29,5 +30,8 @@
     "vitepress-theme-teek": "^1.6.0",
     "vue": "^3.5.39",
     "yaml": "^2.8.2"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0"
   }
 }

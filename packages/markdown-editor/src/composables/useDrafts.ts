@@ -1,88 +1,57 @@
+import { del, get, set } from 'idb-keyval'
 import type { DraftRecord } from '../types'
 
 interface DraftStorageOptions {
   keyPrefix?: string
-  storage?: Storage
-}
-
-function defaultStorage(): Storage | null {
-  if (typeof localStorage === 'undefined') return null
-  return localStorage
 }
 
 export function createDraftStore(options: DraftStorageOptions = {}) {
   const keyPrefix = options.keyPrefix ?? 'markdown-editor:draft:'
-  const storage = options.storage ?? defaultStorage()
 
   function getKey(filePath: string): string {
     return `${keyPrefix}${filePath}`
   }
 
-  function loadDraft(filePath: string): DraftRecord | null {
-    if (!storage) return null
-    const key = getKey(filePath)
-    try {
-      const raw = storage.getItem(key)
-      if (!raw) return null
-      const draft = JSON.parse(raw)
-      if (
-        typeof draft?.content !== 'string' ||
-        typeof draft?.frontmatter !== 'object' ||
-        draft.frontmatter === null ||
-        Array.isArray(draft.frontmatter) ||
-        typeof draft?.savedAt !== 'string' ||
-        (draft.remoteSha !== null && typeof draft.remoteSha !== 'string')
-      ) {
-        storage.removeItem(key)
-        return null
-      }
-      return draft as DraftRecord
-    } catch {
-      try {
-        storage.removeItem(key)
-      } catch {
-        /* storage may be unavailable */
-      }
-      return null
+  async function loadDraft(filePath: string): Promise<DraftRecord | null> {
+    const draft = await get<DraftRecord>(getKey(filePath))
+    if (!draft) return null
+    if (
+      typeof draft.content !== 'string' ||
+      typeof draft.frontmatter !== 'object' ||
+      draft.frontmatter === null ||
+      Array.isArray(draft.frontmatter) ||
+      typeof draft.savedAt !== 'string' ||
+      (draft.remoteSha !== null && typeof draft.remoteSha !== 'string') ||
+      typeof draft.images !== 'object' || draft.images === null || Array.isArray(draft.images)
+    ) {
+      throw new Error(`本机草稿格式无效：${filePath}`)
     }
+    return draft
   }
 
-  function saveDraft(
+  async function saveDraft(
     filePath: string,
     content: string,
     frontmatter: Record<string, unknown>,
     remoteSha: string | null,
-  ): void {
-    if (!storage) return
+    images: Record<string, File> = {},
+  ): Promise<void> {
     const draft: DraftRecord = {
       content,
       frontmatter,
       savedAt: new Date().toISOString(),
       remoteSha,
+      images,
     }
-    try {
-      storage.setItem(getKey(filePath), JSON.stringify(draft))
-    } catch {
-      /* a private browsing session or a full storage quota must not break editing */
-    }
+    await set(getKey(filePath), draft)
   }
 
-  function deleteDraft(filePath: string): void {
-    if (!storage) return
-    try {
-      storage.removeItem(getKey(filePath))
-    } catch {
-      /* storage may be unavailable */
-    }
+  async function deleteDraft(filePath: string): Promise<void> {
+    await del(getKey(filePath))
   }
 
-  function hasDraft(filePath: string): boolean {
-    if (!storage) return false
-    try {
-      return storage.getItem(getKey(filePath)) !== null
-    } catch {
-      return false
-    }
+  async function hasDraft(filePath: string): Promise<boolean> {
+    return (await get(getKey(filePath))) !== undefined
   }
 
   return { loadDraft, saveDraft, deleteDraft, hasDraft }

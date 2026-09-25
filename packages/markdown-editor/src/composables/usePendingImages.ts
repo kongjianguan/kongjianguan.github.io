@@ -42,8 +42,37 @@ export function createPendingImages(options: PendingImageOptions) {
     pending.clear()
   }
 
+  function releaseUnused(content: string): void {
+    for (const [url, image] of pending) {
+      if (content.includes(url)) continue
+      if (typeof URL !== 'undefined' && typeof URL.revokeObjectURL === 'function') {
+        URL.revokeObjectURL(image.localUrl)
+      }
+      pending.delete(url)
+    }
+  }
+
   function hasReferences(content: string): boolean {
     return Array.from(pending.values()).some(({ localUrl }) => content.includes(localUrl))
+  }
+
+  async function prepareDraft(content: string): Promise<{ content: string; files: Record<string, File> }> {
+    const files: Record<string, File> = {}
+    for (const item of pending.values()) {
+      if (content.includes(item.localUrl)) files[item.localUrl] = item.file
+    }
+    return { content, files }
+  }
+
+  async function restoreDraft(content: string, files: Record<string, File>): Promise<string> {
+    let restored = content
+    for (const [token, file] of Object.entries(files)) {
+      if (!restored.includes(token)) continue
+      const localUrl = await stage(file)
+      if (!localUrl) throw new Error('本机图片草稿恢复失败')
+      restored = restored.split(token).join(localUrl)
+    }
+    return restored
   }
 
   /*
@@ -71,5 +100,5 @@ export function createPendingImages(options: PendingImageOptions) {
     }
   }
 
-  return { stage, release, hasReferences, uploadAll, isUploading }
+  return { stage, release, releaseUnused, hasReferences, prepareDraft, restoreDraft, uploadAll, isUploading }
 }

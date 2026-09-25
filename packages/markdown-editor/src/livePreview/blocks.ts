@@ -8,6 +8,7 @@ import {
 import { Decoration, EditorView, WidgetType, type DecorationSet } from '@codemirror/view'
 import { syntaxTree } from '@codemirror/language'
 import type { SyntaxNode } from '@lezer/common'
+import MarkdownIt from 'markdown-it'
 import { intersectsSelection, isVerbatimContext, type MarkerRange } from './model'
 import { mathWidget } from './mathWidget'
 
@@ -21,67 +22,16 @@ interface TableCells {
   rows: SyntaxNode[][]
 }
 
-/* 标记之间的文字不是独立节点，按区间取出来补上 */
-function appendGap(target: Node, doc: Text, from: number, to: number): void {
-  if (to > from) target.appendChild(document.createTextNode(doc.sliceString(from, to)))
-}
-
-/* 链接与图片只保留方括号内的可读文字，地址与括号不进入渲染结果 */
-function renderLabel(node: SyntaxNode, doc: Text): string | null {
-  const marks: SyntaxNode[] = []
-  for (let child = node.firstChild; child; child = child.nextSibling) {
-    if (child.name === 'LinkMark') marks.push(child)
-  }
-  if (marks.length < 2) return null
-  return doc.sliceString(marks[0].to, marks[1].from)
-}
+const tableMarkdown = new MarkdownIt({ html: false })
 
 /*
- * 按语法树取单元格文字，文本切分交给解析器完成。
- * 单元格内的强调、代码等行内结构递归渲染，避免把 `**粗**` 原样暴露出来。
+ * 单元格范围由语法树提供，行内语法与链接校验交给 MarkdownIt。
+ * 禁用原始 HTML，保证插入 DOM 的内容全部来自渲染器。
  */
 function renderInline(node: SyntaxNode, doc: Text): DocumentFragment {
-  const fragment = document.createDocumentFragment()
-
-  const wrap = (name: string, child: SyntaxNode, target: Node): boolean => {
-    const tag = name === 'StrongEmphasis' ? 'strong'
-      : name === 'Emphasis' ? 'em'
-      : name === 'InlineCode' ? 'code'
-      : name === 'Strikethrough' ? 'del'
-      : null
-    if (!tag) return false
-    const element = document.createElement(tag)
-    walk(child, element)
-    target.appendChild(element)
-    return true
-  }
-
-  const walk = (current: SyntaxNode, target: Node): void => {
-    const first = current.firstChild
-    if (first === null) {
-      appendGap(target, doc, current.from, current.to)
-      return
-    }
-    if (current.name === 'Link' || current.name === 'Image') {
-      const label = renderLabel(current, doc)
-      if (label !== null) {
-        target.appendChild(document.createTextNode(label))
-        return
-      }
-    }
-    let pos = current.from
-    for (let item: SyntaxNode | null = first; item; item = item.nextSibling) {
-      appendGap(target, doc, pos, item.from)
-      if (!item.name.endsWith('Mark') && !wrap(item.name, item, target)) {
-        walk(item, target)
-      }
-      pos = item.to
-    }
-    appendGap(target, doc, pos, current.to)
-  }
-
-  walk(node, fragment)
-  return fragment
+  const template = document.createElement('template')
+  template.innerHTML = tableMarkdown.renderInline(doc.sliceString(node.from, node.to))
+  return template.content
 }
 
 function collectCells(node: SyntaxNode): TableCells {

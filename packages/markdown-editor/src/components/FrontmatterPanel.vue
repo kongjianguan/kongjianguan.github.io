@@ -1,4 +1,5 @@
 <script setup lang="ts" name="FrontmatterPanel">
+import { ref, watch } from 'vue'
 const props = defineProps<{
   frontmatter: Record<string, any>
   labels?: Partial<Record<'toggle' | 'title' | 'date' | 'categories' | 'tags' | 'permalink' | 'description', string>>
@@ -10,6 +11,15 @@ const emit = defineEmits<{
 }>()
 
 const collapsed = defineModel<boolean>('collapsed', { default: false })
+const categoriesInput = ref('')
+const tagsInput = ref('')
+
+watch(() => props.frontmatter.categories, value => {
+  categoriesInput.value = Array.isArray(value) ? value.join(', ') : value || ''
+}, { immediate: true })
+watch(() => props.frontmatter.tags, value => {
+  tagsInput.value = Array.isArray(value) ? value.join(', ') : value || ''
+}, { immediate: true })
 
 const defaultLabels = {
   toggle: '文章属性',
@@ -46,11 +56,6 @@ function setArrayField(key: string, value: string) {
   emit('update:frontmatter', { ...props.frontmatter, [key]: arr })
 }
 
-function getArrayValue(key: string): string {
-  const val = props.frontmatter[key]
-  if (Array.isArray(val)) return val.join(', ')
-  return val || ''
-}
 </script>
 
 <template>
@@ -85,8 +90,8 @@ function getArrayValue(key: string): string {
         <label class="fm-label">{{ label('categories') }}</label>
         <input
           class="fm-input"
-          :value="getArrayValue('categories')"
-          @input="setArrayField('categories', ($event.target as HTMLInputElement).value)"
+          v-model="categoriesInput"
+          @change="setArrayField('categories', categoriesInput)"
           :placeholder="placeholder('categories')"
         />
       </div>
@@ -95,8 +100,8 @@ function getArrayValue(key: string): string {
         <label class="fm-label">{{ label('tags') }}</label>
         <input
           class="fm-input"
-          :value="getArrayValue('tags')"
-          @input="setArrayField('tags', ($event.target as HTMLInputElement).value)"
+          v-model="tagsInput"
+          @change="setArrayField('tags', tagsInput)"
           :placeholder="placeholder('tags')"
         />
       </div>

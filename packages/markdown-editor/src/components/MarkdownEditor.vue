@@ -7,6 +7,7 @@ import { createEditSession } from '../composables/useEditMode'
 import { createDraftStore } from '../composables/useDrafts'
 import { createPendingImages } from '../composables/usePendingImages'
 import type { EditorStorage } from '../types'
+import { parseFrontmatter } from '../frontmatter'
 
 // CodeMirror 及其语言包体积可观，且只在进入编辑模式后才需要，因此按需加载。
 const CodeMirrorEditor = defineAsyncComponent(() => import('./CodeMirrorEditor.vue'))
@@ -59,9 +60,9 @@ const session = createEditSession({
 })
 
 const {
-  isEditing, filePath, content, bodyContent, frontmatter,
+  isEditing, filePath, content, bodyContent, frontmatter, draftImages, remoteSha,
   isDirty, isSaving, saveError, loadError, frontmatterError, isNewFile, newFileConflict,
-  initEditor, updateBody, updateFrontmatter, saveDraft, commit,
+  initEditor, updateBody, updateContent, updateFrontmatter, saveDraft, commit, getGeneration, finishEditing,
 } = session
 
 /*
@@ -80,25 +81,56 @@ const initialSelection = ref(0)
  * 光标停在位置 0，内容载入后正好落在第一个标题行内，把该行标记显示出来。
  */
 const contentLoaded = ref(false)
+const draftSaved = ref(false)
+const draftError = ref('')
+const repairingFrontmatter = ref(false)
+let draftSaveTimer: ReturnType<typeof setTimeout> | undefined
 
 const articleTitle = computed(() => (frontmatter.value?.title as string) || props.title || '')
 
-function saveEditorDraft(withNotice = true): void {
-  if (images.hasReferences(content.value)) {
-    if (withNotice) {
-      notify('当前内容包含尚未提交的图片，暂时不能保存为本机草稿。请提交文章，或移除图片后再保存。')
+async function saveEditorDraft(withNotice = true): Promise<boolean | 'changed'> {
+  const path = filePath.value
+  const generation = getGeneration()
+  const snapshot = content.value
+  const metadata = parseFrontmatter(snapshot).frontmatter
+  const sha = remoteSha.value
+  try {
+    const portable = await images.prepareDraft(snapshot)
+    await saveDraft(portable.content, portable.files, path, metadata, sha)
+    const stillCurrent = getGeneration() === generation && filePath.value === path && content.value === snapshot
+    if (stillCurrent) {
+      draftSaved.value = isDirty.value
+      draftError.value = ''
     }
-    return
+    return stillCurrent ? true : 'changed'
+  } catch (error) {
+    if (generation === getGeneration()) {
+      draftSaved.value = false
+      draftError.value = error instanceof Error ? error.message : '本机草稿保存失败'
+      if (withNotice) notify(draftError.value)
+    }
+    return false
   }
-  saveDraft()
 }
 
 async function startEditing(): Promise<void> {
+  clearTimeout(draftSaveTimer)
   contentLoaded.value = false
-  await initEditor(props.filePath, props.fallbackContent, { expectNew: props.expectNew })
+  draftSaved.value = false
+  draftError.value = ''
+  isPreparingCommit.value = false
+  const loading = initEditor(props.filePath, props.fallbackContent, { expectNew: props.expectNew })
+  const generation = getGeneration()
+  await loading
+  if (generation !== getGeneration() || !isEditing.value) return
+  const restoredContent = await images.restoreDraft(content.value, draftImages.value)
+  if (generation !== getGeneration() || !isEditing.value) return
+  if (restoredContent !== content.value) updateContent(restoredContent)
+  repairingFrontmatter.value = Boolean(frontmatterError.value)
   // 打开编辑态时停在文首，与阅读文章时从开头看起的习惯一致
   initialSelection.value = 0
   await nextTick()
+  if (generation !== getGeneration() || !isEditing.value) return
   contentLoaded.value = true
 }
 
@@ -111,36 +143,80 @@ async function openCommitDialog(): Promise<void> {
 }
 
 async function handleExitEdit(): Promise<void> {
-  if (isDirty.value) {
-    if (!confirmAction('有未保存的修改，确定退出吗？')) return
-    saveEditorDraft(false)
+  const generation = getGeneration()
+  if (isDirty.value && !confirmAction('有未保存的修改，确定退出吗？')) return
+  if (contentLoaded.value) {
+    let savedCurrentContent = false
+    while (!savedCurrentContent) {
+      const result = await saveEditorDraft()
+      if (generation !== getGeneration()) return
+      if (result === false) return
+      savedCurrentContent = result === true
+    }
   }
+  clearTimeout(draftSaveTimer)
+  if (generation !== getGeneration()) return
   images.release()
-  isEditing.value = false
+  finishEditing()
   emit('exit')
+}
+
+async function prepareRouteChange(): Promise<boolean> {
+  const generation = getGeneration()
+  if (!isDirty.value) return true
+  if (!confirmAction('有未保存的修改，确定离开当前文章吗？')) return false
+  let savedCurrentContent = false
+  while (!savedCurrentContent) {
+    const result = await saveEditorDraft()
+    if (generation !== getGeneration()) return false
+    if (result === false) return false
+    savedCurrentContent = result === true
+  }
+  return true
 }
 
 async function handleCommit({ message }: { message: string }): Promise<void> {
   if (isPreparingCommit.value) return
   isPreparingCommit.value = true
+  const submittedPath = filePath.value
+  const submittedGeneration = getGeneration()
   try {
     // 图片的本机地址只出现在正文，提交前替换为远程地址。
-    const uploadedBody = await images.uploadAll(bodyContent.value)
-    if (uploadedBody !== bodyContent.value) updateBody(uploadedBody)
+    let submittedContent: string
+    while (true) {
+      if (filePath.value !== submittedPath || getGeneration() !== submittedGeneration) return
+      const currentContent = content.value
+      const currentBody = bodyContent.value
+      const uploadedBody = await images.uploadAll(currentBody)
+      if (filePath.value !== submittedPath || getGeneration() !== submittedGeneration) return
+      if (content.value !== currentContent) continue
+      if (uploadedBody !== currentBody) updateBody(uploadedBody)
+      submittedContent = content.value
+      break
+    }
 
-    const ok = await commit(message)
+    const ok = await commit(message, submittedContent)
+    if (filePath.value !== submittedPath || getGeneration() !== submittedGeneration) return
     if (!ok) {
+      await saveEditorDraft(false)
       notify(saveError.value || '提交失败')
       return
     }
 
-    images.release()
+    clearTimeout(draftSaveTimer)
+    if (isDirty.value) await saveEditorDraft(false)
+    if (filePath.value !== submittedPath || getGeneration() !== submittedGeneration) return
+    images.releaseUnused(content.value)
     showCommitDialog.value = false
     emit('saved')
   } catch (error) {
+    if (getGeneration() !== submittedGeneration) return
+    await saveEditorDraft(false)
     notify(error instanceof Error ? error.message : '图片上传失败')
   } finally {
-    isPreparingCommit.value = false
+    if (filePath.value === submittedPath && getGeneration() === submittedGeneration) {
+      isPreparingCommit.value = false
+    }
   }
 }
 
@@ -156,10 +232,11 @@ watch(
   () => [props.active, props.filePath, props.standalone] as const,
   async ([active], previous) => {
     if (!active) {
+      clearTimeout(draftSaveTimer)
       if (isEditing.value && isDirty.value) saveEditorDraft(false)
       images.release()
       showCommitDialog.value = false
-      isEditing.value = false
+      finishEditing()
       return
     }
 
@@ -173,12 +250,21 @@ watch(
 )
 
 watch(content, (value) => emit('content-change', value))
+watch(content, () => {
+  draftSaved.value = false
+  clearTimeout(draftSaveTimer)
+  if (!contentLoaded.value || !isEditing.value) return
+  draftSaveTimer = setTimeout(() => { void saveEditorDraft(false) }, 400)
+})
 
 onMounted(() => {
   window.addEventListener('beforeunload', handleBeforeUnload)
 })
 
 onBeforeUnmount(() => {
+  clearTimeout(draftSaveTimer)
+  if (isEditing.value && contentLoaded.value) saveEditorDraft(false)
+  finishEditing()
   window.removeEventListener('beforeunload', handleBeforeUnload)
   images.release()
 })
@@ -191,6 +277,7 @@ defineExpose({
   startEditing,
   requestCommit: openCommitDialog,
   requestExit: handleExitEdit,
+  prepareRouteChange,
 })
 </script>
 
@@ -201,9 +288,10 @@ defineExpose({
       :title="articleTitle"
       :is-dirty="isDirty"
       :is-saving="isSaving || isPreparingCommit"
+      :draft-saved="draftSaved"
       :is-logged-in="isLoggedIn"
       :is-new-file="isNewFile"
-      :can-commit="!newFileConflict"
+      :can-commit="contentLoaded && !newFileConflict"
       :empty-path-label="emptyPathLabel"
       @save-draft="saveEditorDraft"
       @commit="openCommitDialog"
@@ -216,12 +304,27 @@ defineExpose({
     </div>
 
     <div v-if="loadError" class="editor-error">{{ loadError }}</div>
+    <p v-if="!contentLoaded" role="status">正在载入文章…</p>
+    <div v-if="draftError" class="editor-error" role="alert">{{ draftError }}</div>
     <div v-if="frontmatterError" class="editor-error">
       {{ frontmatterError }}{{ labels?.frontmatterErrorSuffix || '，请修改文章属性后再提交。' }}
     </div>
 
+    <textarea
+      v-if="repairingFrontmatter"
+      class="mde-invalid-frontmatter"
+      :value="content"
+      aria-label="修复文章属性 YAML"
+      @input="updateContent(($event.target as HTMLTextAreaElement).value)"
+    />
+    <button
+      v-if="repairingFrontmatter"
+      :disabled="Boolean(frontmatterError)"
+      @click="repairingFrontmatter = false"
+    >应用文章属性修复</button>
+
     <FrontmatterPanel
-      v-if="isLoggedIn && !frontmatterError"
+      v-if="contentLoaded && isLoggedIn && !repairingFrontmatter"
       :frontmatter="frontmatter"
       :labels="labels?.frontmatter"
       :placeholders="labels?.placeholders"
@@ -231,7 +334,7 @@ defineExpose({
 
     <div class="mde-editor-body">
       <CodeMirrorEditor
-        v-if="contentLoaded"
+        v-if="contentLoaded && !repairingFrontmatter"
         :model-value="bodyContent"
         :initial-selection="initialSelection"
         :stage-image="images.stage"
@@ -254,3 +357,18 @@ defineExpose({
     />
   </div>
 </template>
+
+<style scoped>
+.mde-invalid-frontmatter {
+  width: 100%;
+  min-height: 12rem;
+  margin: 0 0 12px;
+  padding: 10px;
+  border: 1px solid var(--mde-divider);
+  border-radius: 6px;
+  background: var(--mde-bg);
+  color: var(--mde-text-1);
+  font: 13px/1.6 monospace;
+  resize: vertical;
+}
+</style>

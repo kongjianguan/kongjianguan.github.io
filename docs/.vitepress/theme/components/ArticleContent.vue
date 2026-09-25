@@ -1,6 +1,6 @@
 <script setup lang="ts" name="ArticleContent">
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
-import { useData, useRoute } from 'vitepress'
+import { computed, nextTick, onMounted, onBeforeUnmount, ref, watch } from 'vue'
+import { useData, useRoute, useRouter } from 'vitepress'
 import { MarkdownEditor } from '@kongjianguan/markdown-editor'
 import { useGitHubAuth } from '../composables/useGitHubAuth'
 import { useEditorEntry } from '../composables/useEditorEntry'
@@ -17,6 +17,7 @@ const NEW_ARTICLE_KEY = 'pending_new_article'
 
 const { page } = useData()
 const route = useRoute()
+const router = useRouter()
 const { isLoggedIn } = useGitHubAuth()
 const { editRequested, readModeRequest, clearEditRequest } = useEditorEntry()
 
@@ -100,6 +101,37 @@ watch(pageIdentity, (_next, previous) => {
 
 watch(readModeRequest, () => {
   editorRef.value?.requestExit()
+})
+
+let approvedHref: string | null = null
+let previousHref = typeof window === 'undefined' ? '' : `${window.location.pathname}${window.location.search}${window.location.hash}`
+const routeChangeGuard = async (href: string) => {
+  if (typeof window !== 'undefined') {
+    previousHref = `${window.location.pathname}${window.location.search}${window.location.hash}`
+  }
+  const allowed = await (editorRef.value?.prepareRouteChange() ?? true)
+  if (allowed) approvedHref = href
+  return allowed
+}
+const pageLoadGuard = async (href: string) => {
+  if (approvedHref === href) {
+    approvedHref = null
+    previousHref = href
+    return true
+  }
+  const allowed = await (editorRef.value?.prepareRouteChange() ?? true)
+  if (allowed) previousHref = href
+  if (!allowed && typeof window !== 'undefined') {
+    window.history.replaceState(window.history.state, '', previousHref)
+  }
+  return allowed
+}
+router.onBeforeRouteChange = routeChangeGuard
+router.onBeforePageLoad = pageLoadGuard
+
+onBeforeUnmount(() => {
+  if (router.onBeforeRouteChange === routeChangeGuard) router.onBeforeRouteChange = undefined
+  if (router.onBeforePageLoad === pageLoadGuard) router.onBeforePageLoad = undefined
 })
 
 onMounted(async () => {
