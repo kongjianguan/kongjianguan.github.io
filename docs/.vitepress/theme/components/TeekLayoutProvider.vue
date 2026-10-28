@@ -75,13 +75,15 @@ onMounted(async () => {
       {
         path: withBase('/anon_037_live_default/model.json'),
       },
-      {
-        path: withBase('/rem/model.json'),
-      },
     ],
 
     menus: {
       disable: false, // 禁用右键菜单
+      items: items => items.map(item =>
+        ['About', 'SwitchModel', 'SwitchModelClothes'].includes(item.id)
+          ? { id: item.id, icon: item.icon, title: item.title }
+          : item,
+      ),
     },
 
     tips: {
