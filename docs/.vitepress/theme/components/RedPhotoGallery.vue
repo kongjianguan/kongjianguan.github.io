@@ -1,11 +1,25 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 
 const props = defineProps<{ photos: string[]; title: string }>()
 const active = ref(0)
 const track = ref<HTMLDivElement>()
 const preview = ref<HTMLDialogElement>()
 const previewOpen = ref(false)
+const aspectRatios = ref<Record<number, number>>({})
+const frameRatio = computed(() => {
+  const ratios = Object.values(aspectRatios.value)
+  return ratios.length ? Math.max(0.75, Math.min(...ratios)) : 1
+})
+
+function measureImage(index: number, image: HTMLImageElement) {
+  if (image.naturalWidth && image.naturalHeight) {
+    aspectRatios.value[index] = image.naturalWidth / image.naturalHeight
+  }
+}
+
+// Image loads can finish before VitePress hydrates the server-rendered gallery.
+onMounted(() => track.value?.querySelectorAll('img').forEach((image, index) => measureImage(index, image)))
 
 function updatePosition() {
   const element = track.value!
@@ -29,6 +43,7 @@ function openPreview(index: number) {
 <template>
   <section
     class="photo-gallery"
+    :style="{ '--frame-ratio': frameRatio }"
     aria-label="文章照片"
     @keydown.left.prevent="goTo(active - 1)"
     @keydown.right.prevent="goTo(active + 1)"
@@ -38,12 +53,13 @@ function openPreview(index: number) {
         v-for="(photo, index) in photos"
         :key="index"
         class="photo-slide"
+        :style="{ aspectRatio: String(frameRatio) }"
         type="button"
         :tabindex="index === active ? 0 : -1"
         :aria-label="`预览第 ${index + 1} 张照片`"
         @click="openPreview(index)"
       >
-        <img :src="photo" :alt="`${title} · 照片 ${index + 1}`" :loading="index === 0 ? 'eager' : 'lazy'" draggable="false" />
+        <img :src="photo" :alt="`${title} · 照片 ${index + 1}`" draggable="false" @load="measureImage(index, $event.currentTarget as HTMLImageElement)" />
       </button>
     </div>
 
@@ -73,8 +89,10 @@ function openPreview(index: number) {
         @keydown.left.prevent="goTo(active - 1)"
         @keydown.right.prevent="goTo(active + 1)"
       >
-        <img v-if="previewOpen" :src="photos[active]" :alt="`${title} · 照片 ${active + 1}`" />
-        <button type="button" class="preview-close" aria-label="关闭照片预览" autofocus @click="preview?.close()">×</button>
+        <div class="photo-preview-frame" :style="{ aspectRatio: String(frameRatio), '--frame-ratio': frameRatio }">
+          <img v-if="previewOpen" :src="photos[active]" :alt="`${title} · 照片 ${active + 1}`" />
+          <button type="button" class="preview-close" aria-label="关闭照片预览" autofocus @click="preview?.close()">×</button>
+        </div>
       </dialog>
     </Teleport>
   </section>
@@ -89,9 +107,9 @@ function openPreview(index: number) {
   scrollbar-width: none;
   overscroll-behavior-x: contain;
 }
-.photo-slide { flex: 0 0 100%; aspect-ratio: 1; scroll-snap-align: start; scroll-snap-stop: always; cursor: zoom-in; }
+.photo-slide { position: relative; flex: 0 0 100%; min-width: 0; scroll-snap-align: start; scroll-snap-stop: always; cursor: zoom-in; }
 .photo-slide:focus-visible { outline-offset: -4px; }
-.photo-slide img { width: 100%; height: 100%; object-fit: contain; }
+.photo-slide img, .photo-preview-frame img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
 .photo-count, .photo-arrow, .photo-dots, .preview-close {
   position: absolute;
   border-radius: 999px;
@@ -107,14 +125,20 @@ function openPreview(index: number) {
 .photo-dots button { display: grid; flex: 0 0 22px; height: 32px; place-items: center; }
 .photo-dots button::before { content: ''; display: block; width: 7px; height: 7px; border-radius: 999px; background: rgb(255 255 255 / 59%); }
 .photo-dots button[aria-current]::before { width: 14px; background: white; }
-.photo-preview { position: fixed; inset: 0; margin: auto; padding: 0; max-width: calc(100vw - 24px); max-height: calc(100dvh - 24px); background: transparent; overflow: visible; }
-.photo-preview::backdrop { background: rgb(12 12 17 / 90%); }
-.photo-preview img { max-height: calc(100dvh - 24px); object-fit: contain; }
+.photo-preview { position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; background: transparent; overflow: hidden; }
+.photo-preview[open] { display: grid; place-items: center; }
+.photo-preview::backdrop { background: #0c0c10; }
+.photo-preview-frame { position: relative; width: min(calc(100vw - 32px), calc((100dvh - 120px) * var(--frame-ratio))); }
 .preview-close { top: 8px; right: 8px; width: 44px; height: 44px; font-size: 28px; }
 
 @media (min-width: 960px) {
-  .photo-gallery { align-self: start; position: sticky; top: calc(var(--vp-nav-height) + 24px); }
-  .photo-slide { max-height: calc(100dvh - var(--vp-nav-height) - 48px); }
+  .photo-gallery {
+    align-self: start;
+    justify-self: center;
+    position: sticky;
+    top: calc(var(--vp-nav-height) + 24px);
+    width: min(100%, calc((100dvh - var(--vp-nav-height) - 48px) * var(--frame-ratio)));
+  }
   .photo-arrow { display: block; }
 }
 </style>

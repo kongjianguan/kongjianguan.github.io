@@ -7,6 +7,7 @@ interface Photo {
   file: File
   preview: string
   uploaded?: string
+  aspectRatio?: number
 }
 
 const emit = defineEmits<{
@@ -33,6 +34,13 @@ const body = ref('')
 const column = ref(0)
 const tags = ref<string[]>([])
 const photos = reactive<Photo[]>([])
+const previewIndex = ref<number | null>(null)
+const previewDialog = ref<HTMLDialogElement>()
+const previewClose = ref<HTMLButtonElement>()
+const tallestRatio = computed(() => {
+  const ratios = photos.map(photo => photo.aspectRatio).filter((ratio): ratio is number => typeof ratio === 'number' && ratio > 0)
+  return ratios.length ? Math.max(0.75, Math.min(...ratios)) : 1
+})
 const busy = ref(false)
 const preparing = ref(false)
 const published = ref(false)
@@ -67,7 +75,13 @@ function selectPhotos(event: Event) {
   const files = Array.from(input.files ?? [])
   const slots = maxPhotos - photos.length
   for (const file of files.slice(0, slots)) {
-    photos.push({ file, preview: URL.createObjectURL(file) })
+    const photo = reactive<Photo>({ file, preview: URL.createObjectURL(file) })
+    const image = new Image()
+    image.onload = () => {
+      if (image.naturalWidth && image.naturalHeight) photo.aspectRatio = image.naturalWidth / image.naturalHeight
+    }
+    image.src = photo.preview
+    photos.push(photo)
   }
   selectionNotice.value = files.length > slots ? `每篇动态最多添加 ${maxPhotos} 张照片` : ''
   error.value = ''
@@ -79,6 +93,46 @@ function removePhoto(index: number) {
   photos.splice(index, 1)
   selectionNotice.value = ''
   error.value = ''
+}
+
+async function openPreview(index: number) {
+  previewIndex.value = index
+  await nextTick()
+  previewDialog.value?.showModal()
+}
+
+async function closePreview() {
+  previewDialog.value?.close()
+  previewIndex.value = null
+  await nextTick()
+  if (!modal.value?.contains(document.activeElement)) {
+    modal.value?.querySelector<HTMLElement>('.compose-thumb-open, .compose-picker input')?.focus()
+  }
+}
+
+function movePreview(offset: number) {
+  if (previewIndex.value === null) return
+  const index = previewIndex.value + offset
+  if (index >= 0 && index < photos.length) previewIndex.value = index
+}
+
+function setCover(index: number) {
+  if (index === 0) return
+  const [photo] = photos.splice(index, 1)
+  photos.unshift(photo)
+  previewIndex.value = 0
+  previewClose.value?.focus()
+}
+
+function deleteCurrent() {
+  const index = previewIndex.value
+  if (index === null) return
+  removePhoto(index)
+  if (!photos.length) {
+    closePreview()
+    return
+  }
+  previewIndex.value = Math.min(index, photos.length - 1)
 }
 
 function toggleTag(tag: string) {
@@ -210,8 +264,10 @@ function dismiss() {
             <div class="photo-label"><span>照片</span><span>{{ photos.length }} / {{ maxPhotos }}</span></div>
             <div class="compose-photos" :class="{ empty: !photos.length }">
               <div v-for="(photo, index) in photos" :key="photo.preview" class="compose-thumb">
-                <img :src="photo.preview" :alt="`所选照片 ${index + 1}`" />
-                <button type="button" :aria-label="`移除第 ${index + 1} 张照片`" @click="removePhoto(index)"><span aria-hidden="true">×</span></button>
+                <button class="compose-thumb-open" type="button" :aria-label="`预览第 ${index + 1} 张照片`" @click="openPreview(index)">
+                  <img :src="photo.preview" alt="" />
+                </button>
+                <button class="compose-thumb-remove" type="button" :aria-label="`移除第 ${index + 1} 张照片`" @click.stop="removePhoto(index)"><span aria-hidden="true">×</span></button>
               </div>
               <label v-if="photos.length < maxPhotos" class="compose-picker">
                 <input type="file" multiple accept="image/*" aria-label="添加照片" @change="selectPhotos" />
@@ -256,6 +312,50 @@ function dismiss() {
       </form>
     </dialog>
   </Teleport>
+
+  <Teleport to="body">
+    <dialog
+      v-if="previewIndex !== null"
+      ref="previewDialog"
+      class="compose-preview"
+      aria-label="照片预览"
+      @click.self="closePreview"
+      @cancel.prevent="closePreview"
+      @keydown.left.prevent="movePreview(-1)"
+      @keydown.right.prevent="movePreview(1)"
+    >
+      <div class="compose-preview-actions" role="group" aria-label="照片操作">
+        <button type="button" :disabled="previewIndex === 0" @click="setCover(previewIndex)">
+          <svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" /></svg>
+          设为封面
+        </button>
+        <button type="button" aria-label="删除照片" @click="deleteCurrent">
+          <svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+          删除
+        </button>
+        <button ref="previewClose" type="button" aria-label="关闭" autofocus @click="closePreview">
+          <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m6 6 12 12M18 6 6 18" /></svg>
+        </button>
+      </div>
+      <div class="compose-preview-frame" :style="{ aspectRatio: String(tallestRatio), '--frame-ratio': tallestRatio }">
+        <img :src="photos[previewIndex].preview" :alt="`所选照片 ${previewIndex + 1}`" />
+      </div>
+      <template v-if="photos.length > 1">
+        <button class="compose-preview-arrow previous" type="button" aria-label="上一张照片" :aria-disabled="previewIndex === 0" @click="movePreview(-1)">‹</button>
+        <button class="compose-preview-arrow next" type="button" aria-label="下一张照片" :aria-disabled="previewIndex === photos.length - 1" @click="movePreview(1)">›</button>
+        <div class="compose-preview-dots" role="group" aria-label="选择照片">
+          <button
+            v-for="(photo, index) in photos"
+            :key="photo.preview"
+            type="button"
+            :aria-label="`查看第 ${index + 1} 张照片`"
+            :aria-current="index === previewIndex ? 'true' : undefined"
+            @click="previewIndex = index"
+          />
+        </div>
+      </template>
+    </dialog>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -291,9 +391,11 @@ function dismiss() {
 .compose-photos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .compose-photos.empty { grid-template-columns: 1fr; }
 .compose-thumb, .compose-picker { position: relative; aspect-ratio: 1; border-radius: 12px; overflow: hidden; background: var(--vp-c-bg-soft); }
+.compose-thumb-open { position: absolute; inset: 0; cursor: zoom-in; }
+.compose-thumb-open:focus-visible { outline: 2px solid var(--vp-c-brand-1); outline-offset: -3px; }
 .compose-thumb img { width: 100%; height: 100%; object-fit: cover; }
-.compose-thumb button { position: absolute; top: 0; right: 0; display: grid; place-items: center; width: 44px; height: 44px; }
-.compose-thumb button span { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: rgb(20 20 24 / 76%); color: white; font-size: 19px; }
+.compose-thumb-remove { position: absolute; top: 0; right: 0; display: grid; place-items: center; width: 44px; height: 44px; }
+.compose-thumb-remove span { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: rgb(20 20 24 / 76%); color: white; font-size: 19px; }
 .compose-picker { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; border: 1px dashed var(--vp-c-brand-1); color: var(--vp-c-brand-1); font-size: 13px; cursor: pointer; }
 .compose-picker:hover { background: var(--vp-c-brand-soft); }
 .compose-picker:focus-within { outline: 2px solid var(--vp-c-brand-1); outline-offset: 2px; }
@@ -318,6 +420,47 @@ function dismiss() {
 .compose-error { color: var(--vp-c-danger-1); }
 .compose-notice { color: var(--vp-c-text-2); }
 .compose-success p { margin-block: 12px 22px; color: var(--vp-c-text-2); }
+
+.compose-preview {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: white;
+  overflow: hidden;
+}
+.compose-preview[open] { display: grid; place-items: center; }
+.compose-preview::backdrop { background: #0c0c10; }
+.compose-preview-frame { width: min(calc(100vw - 32px), calc((100dvh - 120px) * var(--frame-ratio))); }
+.compose-preview-frame img { width: 100%; height: 100%; object-fit: contain; }
+.compose-preview-actions { position: absolute; top: 8px; right: 16px; display: flex; gap: 4px; }
+.compose-preview-actions button, .compose-preview-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 14px;
+}
+.compose-preview button:focus-visible { outline: 2px solid white; outline-offset: -2px; }
+.compose-preview button:disabled, .compose-preview button[aria-disabled='true'] { opacity: .38; cursor: default; }
+.compose-preview-actions button:not(:disabled):hover { background: rgb(255 255 255 / 14%); }
+.compose-preview-arrow { position: absolute; top: 50%; transform: translateY(-50%); background: rgb(20 20 24 / 76%); font-size: 30px; }
+.compose-preview-arrow.previous { left: 8px; }
+.compose-preview-arrow.next { right: 8px; }
+.compose-preview-dots { position: absolute; bottom: 8px; display: flex; }
+.compose-preview-dots button { display: grid; width: 28px; height: 44px; place-items: center; }
+.compose-preview-dots button::before { content: ''; width: 6px; height: 6px; border-radius: 999px; background: rgb(255 255 255 / 52%); }
+.compose-preview-dots button[aria-current]::before { width: 14px; background: white; }
 
 @keyframes compose-in { from { opacity: 0; transform: translateY(7px); } }
 @media (max-width: 599px) {
