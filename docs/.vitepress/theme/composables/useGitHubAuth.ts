@@ -19,6 +19,12 @@ interface GitHubUser {
   avatar_url: string
 }
 
+interface OAuthPreparedCredentials {
+  verifier: string
+  challenge: string
+  state: string
+}
+
 function generateCodeVerifier(): string {
   const array = new Uint8Array(96)
   crypto.getRandomValues(array)
@@ -72,9 +78,32 @@ let sessionCheckStarted = false
 let authPopup: Window | null = null
 let popupCloseWatcher: number | null = null
 let popupMessageListenerStarted = false
+let preparedAuth: OAuthPreparedCredentials | null = null
+let preparingAuthPromise: Promise<OAuthPreparedCredentials | null> | null = null
 
 if (typeof window !== 'undefined') {
   try { localStorage.removeItem('github_token') } catch { /* storage may be unavailable */ }
+}
+
+async function prepareAuthCredentials(): Promise<OAuthPreparedCredentials | null> {
+  if (typeof window === 'undefined' || LOCAL_AUTH) return null
+  if (preparedAuth) return preparedAuth
+  if (preparingAuthPromise) return preparingAuthPromise
+
+  preparingAuthPromise = (async () => {
+    const verifier = generateCodeVerifier()
+    const challenge = await generateCodeChallenge(verifier)
+    const state = generateState()
+    return { verifier, challenge, state }
+  })().catch(error => {
+    console.warn('GitHub OAuth 凭据预计算失败', error)
+    return null
+  }).then(creds => {
+    preparingAuthPromise = null
+    preparedAuth = creds
+    return creds
+  })
+  return preparingAuthPromise
 }
 
 async function loadSession(): Promise<void> {
@@ -150,6 +179,9 @@ export function useGitHubAuth() {
     sessionCheckStarted = true
     void loadSession()
   }
+  if (typeof window !== 'undefined' && !LOCAL_AUTH && !isLoggedIn.value) {
+    void prepareAuthCredentials()
+  }
   startPopupMessageListener()
 
   async function login() {
@@ -161,43 +193,56 @@ export function useGitHubAuth() {
     if (loginPending.value || (authPopup && !authPopup.closed)) return
     loginPending.value = true
 
-    const popup = window.open(
-      'about:blank',
-      'github-oauth',
-      'popup,width=520,height=720,noopener=no,toolbar=no,menubar=no,location=yes,status=no,scrollbars=yes,resizable=yes',
-    )
-    authPopup = popup && !popup.closed ? popup : null
-    if (authPopup) watchAuthPopup(authPopup)
-
-    const verifier = generateCodeVerifier()
-    const state = generateState()
-    const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`
     try {
-      localStorage.setItem(getOAuthPendingKey(state), JSON.stringify({ verifier, returnTo }))
-    } catch {
-      authPopup?.close()
+      let creds = preparedAuth
+      preparedAuth = null
+      if (!creds) {
+        creds = await (preparingAuthPromise || prepareAuthCredentials())
+        preparedAuth = null
+      }
+      void prepareAuthCredentials()
+      if (!creds) {
+        const verifier = generateCodeVerifier()
+        const state = generateState()
+        const challenge = await generateCodeChallenge(verifier)
+        creds = { verifier, challenge, state }
+      }
+
+      const { verifier, challenge, state } = creds
+      const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`
+      try {
+        localStorage.setItem(getOAuthPendingKey(state), JSON.stringify({ verifier, returnTo }))
+        setCookie(OAUTH_STATE_COOKIE, state, 10 * 60)
+      } catch {
+        throw new Error('无法保存登录状态，请检查浏览器存储权限')
+      }
+
+      const params = new URLSearchParams({
+        client_id: CLIENT_ID,
+        redirect_uri: REDIRECT_URI,
+        scope: 'public_repo',
+        code_challenge: challenge,
+        code_challenge_method: 'S256',
+        state,
+        response_type: 'code',
+      })
+      const authorizeUrl = `https://github.com/login/oauth/authorize?${params}`
+      const popup = window.open(
+        authorizeUrl,
+        'github-oauth',
+        'popup,width=520,height=720,toolbar=no,menubar=no,location=yes,status=no,scrollbars=yes,resizable=yes',
+      )
+      if (popup && !popup.closed) {
+        authPopup = popup
+        watchAuthPopup(popup)
+        try { popup.focus() } catch {}
+      } else {
+        releaseAuthPopup()
+        window.location.href = authorizeUrl
+      }
+    } catch (error) {
       releaseAuthPopup()
-      throw new Error('无法保存登录状态，请检查浏览器存储权限')
-    }
-    setCookie(OAUTH_STATE_COOKIE, state, 10 * 60)
-    const challenge = await generateCodeChallenge(verifier)
-
-    const params = new URLSearchParams({
-      client_id: CLIENT_ID,
-      redirect_uri: REDIRECT_URI,
-      scope: 'public_repo',
-      code_challenge: challenge,
-      code_challenge_method: 'S256',
-      state,
-      response_type: 'code',
-    })
-
-    const authorizeUrl = `https://github.com/login/oauth/authorize?${params}`
-    if (authPopup) {
-      authPopup.location.href = authorizeUrl
-      authPopup.focus()
-    } else {
-      window.location.href = authorizeUrl
+      throw error
     }
   }
 
@@ -228,6 +273,7 @@ export function useGitHubAuth() {
     user,
     login,
     loginPending,
+    prepareLogin: () => void prepareAuthCredentials(),
     consumeAuthError: () => {
       if (typeof window === 'undefined') return null
       try {

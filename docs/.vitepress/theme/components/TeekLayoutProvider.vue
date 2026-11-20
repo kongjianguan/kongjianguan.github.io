@@ -32,6 +32,21 @@ function handleEditModeToggle() {
   requestEdit();
 }
 
+function closeNavScreen(event: MouseEvent) {
+  const action = event.currentTarget as HTMLButtonElement;
+  action.closest('.VPNav')?.querySelector<HTMLButtonElement>('[aria-controls="VPNavScreen"][aria-expanded="true"]')?.click();
+}
+
+function handleNavScreenEdit(event: MouseEvent) {
+  closeNavScreen(event);
+  handleEditModeToggle();
+}
+
+function handleNavScreenCreate(event: MouseEvent) {
+  closeNavScreen(event);
+  showNewDialog.value = true;
+}
+
 onMounted(async () => {
   const currentUrl = new URL(window.location.href);
   if (currentUrl.searchParams.has('edit')) {
@@ -99,6 +114,35 @@ function handleNewArticle(payload: { path: string; title: string; template: stri
             <line x1="12" y1="5" x2="12" y2="19"/>
             <line x1="5" y1="12" x2="19" y2="12"/>
           </svg>
+        </button>
+      </div>
+    </template>
+
+    <template #nav-screen-content-after>
+      <div v-if="isLoggedIn" class="nav-screen-editor-actions">
+        <button
+          v-if="hasEditablePage"
+          type="button"
+          class="nav-screen-action-btn"
+          :aria-pressed="editRequested"
+          @click="handleNavScreenEdit"
+        >
+          <svg v-if="editRequested" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2Z"/>
+            <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7Z"/>
+          </svg>
+          <svg v-else viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 20h9"/>
+            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/>
+          </svg>
+          <span>{{ editButtonTitle }}</span>
+        </button>
+        <button type="button" class="nav-screen-action-btn" @click="handleNavScreenCreate">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="12" y1="5" x2="12" y2="19"/>
+            <line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          <span>新建文章</span>
         </button>
       </div>
     </template>
@@ -187,12 +231,12 @@ function handleNewArticle(payload: { path: string; title: string; template: stri
 
 @media (max-width: 767px) {
   .VPNavBar .wrapper {
-    padding-right: 12px;
-    padding-left: 12px;
+    padding-right: 8px !important;
+    padding-left: 10px !important;
   }
 
   .VPNavBar .container > .title {
-    flex: 1;
+    flex: 0 1 auto;
     min-width: 0;
   }
 
@@ -209,21 +253,77 @@ function handleNewArticle(payload: { path: string; title: string; template: stri
   }
 
   .VPNavBar .content-body {
-    column-gap: 0;
+    column-gap: 2px !important;
+  }
+
+  .VPNavBarHamburger {
+    width: 36px !important;
+    height: 36px !important;
+    margin: 0 !important;
+    flex-shrink: 0;
+  }
+
+  .VPNavBar .blog-search {
+    padding-left: 0 !important;
+    margin: 0 !important;
+  }
+
+  .VPNavBar .blog-search > .nav-search-btn-wait {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px !important;
+    height: 36px !important;
+    padding: 0 !important;
   }
 
   .nav-action-btn {
-    width: 44px;
-    height: 44px;
-    margin: 0;
+    width: 34px;
+    height: 34px;
+    margin: 0 1px;
+    border-radius: 6px;
   }
 
-  .new-article-btn {
-    display: none;
+  .nav-editor-actions {
+    gap: 2px;
   }
 
   .nav-mobile-create {
     display: flex;
+  }
+
+  .nav-screen-editor-actions {
+    display: grid;
+    gap: 4px;
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid var(--vp-c-divider);
+  }
+
+  .nav-screen-action-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 44px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: var(--vp-c-bg-soft);
+    color: var(--vp-c-text-1);
+    font-size: 14px;
+    text-align: left;
+  }
+
+  .nav-screen-action-btn:hover,
+  .nav-screen-action-btn:focus-visible,
+  .nav-screen-action-btn[aria-pressed="true"] {
+    color: var(--vp-c-brand-1);
+  }
+}
+
+@media (min-width: 768px) and (max-width: 959px) {
+  .VPNavBar .blog-search {
+    max-width: 220px;
   }
 }
 

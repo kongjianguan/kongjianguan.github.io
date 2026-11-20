@@ -2,7 +2,7 @@
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useGitHubAuth } from '../composables/useGitHubAuth'
 
-const { isLoggedIn, user, login, loginPending, logout } = useGitHubAuth()
+const { isLoggedIn, user, login, loginPending, prepareLogin, logout } = useGitHubAuth()
 const menuOpen = ref(false)
 const wrapperRef = ref<HTMLElement | null>(null)
 
@@ -44,7 +44,11 @@ onBeforeUnmount(() => document.removeEventListener('click', handleClickOutside))
         :aria-expanded="menuOpen"
         @click="toggleMenu"
       >
-        <img :src="user.avatar_url" alt="" class="avatar" width="20" height="20" />
+        <img v-if="user.avatar_url" :src="user.avatar_url" alt="" class="avatar" width="20" height="20" />
+        <svg v-else class="avatar" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="8" r="3" />
+          <path d="M5 20v-1a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v1" />
+        </svg>
         <span class="username">{{ user.login }}</span>
       </button>
       <Transition name="user-menu">
@@ -66,6 +70,8 @@ onBeforeUnmount(() => document.removeEventListener('click', handleClickOutside))
       class="login-btn login-prompt"
       :disabled="loginPending"
       aria-label="登录"
+      @mouseenter="prepareLogin"
+      @focus="prepareLogin"
       @click="handleLogin"
     >
       <svg class="gh-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
@@ -171,25 +177,27 @@ onBeforeUnmount(() => document.removeEventListener('click', handleClickOutside))
   transform: translateY(-4px);
 }
 
-@media (max-width: 767px) {
+@media (max-width: 959px) {
   .login-btn {
     justify-content: center;
-    width: 44px;
-    height: 44px;
+    width: 34px;
+    height: 34px;
     padding: 0;
     line-height: 1;
   }
 
   .username,
   .login-label {
-    display: none;
+    display: none !important;
   }
 
   .avatar {
-    width: 24px;
-    height: 24px;
+    width: 22px;
+    height: 22px;
   }
+}
 
+@media (max-width: 767px) {
   .user-menu-item,
   :slotted(.user-menu-item) {
     min-height: 44px;

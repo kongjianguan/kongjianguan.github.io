@@ -132,7 +132,7 @@ try {
     await account.click()
     await expect(page.locator('.user-menu')).toBeInViewport()
     if (layout.viewport < 768) {
-      await page.getByRole('button', { name: '新建文章', exact: true }).click()
+      await page.locator('.user-menu').getByRole('button', { name: '新建文章', exact: true }).click()
       await expect(page.getByPlaceholder('添加标题（可选）')).toBeVisible()
       const composer = page.getByRole('dialog', { name: '新建文章' })
       const picker = composer.getByLabel('添加照片')
