@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GitHub 登录</title>
+  <style>
+    :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+    body { min-height: 100vh; margin: 0; display: grid; place-items: center; background: Canvas; color: CanvasText; }
+    main { display: grid; justify-items: center; gap: 16px; padding: 32px; text-align: center; }
+    .spinner { width: 28px; height: 28px; border: 3px solid color-mix(in srgb, CanvasText 18%, transparent); border-top-color: #42b883; border-radius: 50%; animation: spin .8s linear infinite; }
+    p { margin: 0; }
+    .error { color: #d33; }
+    button { padding: 8px 18px; border: 0; border-radius: 6px; background: #42b883; color: white; cursor: pointer; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <main id="app" aria-live="polite">
+    <div class="spinner" aria-hidden="true"></div>
+    <p>正在完成 GitHub 登录……</p>
+  </main>
+  <script>
+    const pendingPrefix = 'github_oauth_pending:'
+    const stateCookie = 'github_oauth_state'
+
+    function safeReturnTo(value) {
+      if (!value) return '/'
+      try {
+        const url = new URL(value, window.location.origin)
+        if (url.origin !== window.location.origin || url.pathname === '/__auth/callback') return '/'
+        return url.pathname + url.search + url.hash
+      } catch {
+        return '/'
+      }
+    }
+
+    function clearState(state) {
+      if (state) localStorage.removeItem(pendingPrefix + state)
+      document.cookie = stateCookie + '=; Path=/; Max-Age=0; SameSite=Lax'
+    }
+
+    function isPopup() {
+      return Boolean(window.opener && window.opener !== window)
+    }
+
+    function finishPopup(ok, user, error) {
+      if (!isPopup()) return
+      window.opener.postMessage({ type: 'github-oauth-complete', ok, user, error }, window.location.origin)
+      window.close()
+    }
+
+    function showError(message) {
+      document.getElementById('app').innerHTML = '<p class="error"></p><button type="button">关闭</button>'
+      document.querySelector('.error').textContent = message
+      document.querySelector('button').addEventListener('click', () => window.close())
+    }
+
+    async function completeLogin() {
+      const params = new URLSearchParams(window.location.search)
+      const code = params.get('code')
+      const state = params.get('state')
+      const oauthError = params.get('error')
+      const errorDescription = params.get('error_description')
+      const pending = state ? JSON.parse(localStorage.getItem(pendingPrefix + state) || 'null') : null
+      const returnTo = safeReturnTo(pending && pending.returnTo)
+
+      if (oauthError || !code || !state || !pending || typeof pending.verifier !== 'string') {
+        const message = oauthError === 'access_denied' ? 'GitHub 登录已取消' : (errorDescription || oauthError || '未检测到登录授权信息')
+        clearState(state)
+        if (isPopup()) {
+          finishPopup(false, undefined, message)
+        } else {
+          sessionStorage.setItem('github_oauth_error', message)
+          window.location.replace(returnTo)
+        }
+        return
+      }
+
+      try {
+        const response = await fetch('/api/auth/callback', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code, code_verifier: pending.verifier, state }),
+        })
+        const data = await response.json()
+        if (!response.ok || !data.user || !data.user.login) throw new Error(data.error || 'GitHub 登录失败')
+        clearState(state)
+        if (isPopup()) finishPopup(true, data.user)
+        else window.location.replace(returnTo)
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'GitHub 登录失败'
+        clearState(state)
+        if (isPopup()) {
+          finishPopup(false, undefined, message)
+        } else {
+          sessionStorage.setItem('github_oauth_error', message)
+          window.location.replace(returnTo)
+        }
+      }
+    }
+
+    completeLogin().catch(error => {
+      showError(error instanceof Error ? error.message : 'GitHub 登录失败')
+    })
+  </script>
+</body>
+</html>

@@ -1,5 +1,8 @@
 {
   "cleanUrls": true,
+  "rewrites": [
+    { "source": "/__auth/callback", "destination": "/__auth/callback.html" }
+  ],
   "functions": {
     "api/auth/callback.ts": {
       "memory": 256,

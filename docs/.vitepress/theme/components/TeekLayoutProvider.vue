@@ -5,7 +5,7 @@ import ArticleContent from "./ArticleContent.vue";
 import LoginButton from "./LoginButton.vue";
 
 import { computed, defineAsyncComponent, ref, onMounted } from 'vue';
-import { useData, useRoute, withBase } from 'vitepress';
+import { useData, withBase } from 'vitepress';
 import { useGitHubAuth } from '../composables/useGitHubAuth';
 import { useEditorEntry } from '../composables/useEditorEntry';
 import { useLive2D } from '../composables/useLive2D';
@@ -17,15 +17,11 @@ const NewArticleDialog = defineAsyncComponent(() => import('./NewArticleDialog.v
 const showNewDialog = ref(false);
 const { page, frontmatter } = useData();
 const isPhotoPage = computed(() => isRedPost(frontmatter.value));
-const route = useRoute();
 const { isLoggedIn } = useGitHubAuth();
 const { editRequested, requestEdit, requestReadMode } = useEditorEntry();
-const callbackStatus = ref<'loading' | 'error'>('loading');
-const callbackError = ref<string>('');
 const isHomePage = computed(() => frontmatter.value.layout === 'home' || page.value.relativePath === 'index.md');
-const isAuthCallback = computed(() => route.path === '/__auth/callback');
-const hasEditablePage = computed(() => Boolean(page.value.relativePath) && !isHomePage.value && !isAuthCallback.value);
-useLive2D(() => !isAuthCallback.value);
+const hasEditablePage = computed(() => Boolean(page.value.relativePath) && !isHomePage.value);
+useLive2D(() => true);
 const editButtonTitle = computed(() => editRequested.value ? '阅读模式' : '编辑文章');
 
 function handleEditModeToggle() {
@@ -41,22 +37,6 @@ onMounted(async () => {
   if (currentUrl.searchParams.has('edit')) {
     currentUrl.searchParams.delete('edit');
     window.history.replaceState({}, '', currentUrl.pathname + currentUrl.search + currentUrl.hash);
-  }
-
-  if (isAuthCallback.value) {
-    const { handleCallback } = useGitHubAuth();
-    try {
-      const result = await handleCallback();
-      if (!result.ok && !result.isPopup) {
-        callbackStatus.value = 'error';
-        callbackError.value = result.error || 'GitHub 登录失败';
-      }
-    } catch (e) {
-      console.error('OAuth callback error:', e);
-      callbackStatus.value = 'error';
-      callbackError.value = e instanceof Error ? e.message : 'GitHub 登录遇到异常';
-    }
-    return;
   }
 
   // 非弹窗模式下登录失败跳回原页面后，消费并提示错误
@@ -86,20 +66,7 @@ function handleNewArticle(payload: { path: string; title: string; template: stri
 </script>
 
 <template>
-  <div v-if="isAuthCallback" class="oauth-callback-page">
-    <div v-if="callbackStatus === 'loading'" class="callback-card">
-      <div class="callback-spinner"></div>
-      <p>正在完成 GitHub 登录……</p>
-    </div>
-    <div v-else class="callback-card is-error">
-      <p class="error-msg">{{ callbackError || '登录遇到问题' }}</p>
-      <div class="error-actions">
-        <a href="/" class="callback-btn">返回首页</a>
-      </div>
-    </div>
-  </div>
-
-  <Teek.Layout v-else>
+  <Teek.Layout>
     <template #nav-bar-content-after>
       <div class="nav-editor-actions">
         <button
@@ -275,59 +242,4 @@ function handleNewArticle(payload: { path: string; title: string; template: stri
   pointer-events: none;
 }
 
-.oauth-callback-page {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--vp-c-bg);
-  color: var(--vp-c-text-1);
-}
-
-.callback-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  padding: 32px;
-  border-radius: 8px;
-  background: var(--vp-c-bg-soft);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-}
-
-.callback-spinner {
-  width: 32px;
-  height: 32px;
-  border: 3px solid var(--vp-c-divider);
-  border-top-color: var(--vp-c-brand-1);
-  border-radius: 50%;
-  animation: callback-spin 0.8s linear infinite;
-}
-
-@keyframes callback-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.error-msg {
-  color: var(--vp-c-danger-1, #e03131);
-  font-size: 15px;
-  margin: 0;
-}
-
-.callback-btn {
-  display: inline-block;
-  padding: 6px 16px;
-  border-radius: 4px;
-  font-size: 14px;
-  background: var(--vp-c-brand-1);
-  color: #fff !important;
-  text-decoration: none;
-  transition: opacity 0.2s;
-}
-
-.callback-btn:hover {
-  opacity: 0.85;
-}
 </style>

@@ -77,6 +77,18 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       {
+        name: 'github-oauth-callback',
+        configureServer(server) {
+          server.middlewares.use((request, _response, next) => {
+            if (request.url?.split('?')[0] === '/__auth/callback') {
+              const query = request.url.includes('?') ? request.url.slice(request.url.indexOf('?')) : ''
+              request.url = `/__auth/callback.html${query}`
+            }
+            next()
+          })
+        },
+      },
+      {
         name: 'red-post-covers',
         configResolved(config) {
           // Teek 在 config 阶段汇总文章，首页和分类列表共用这些文章对象。

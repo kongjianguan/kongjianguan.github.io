@@ -14,21 +14,9 @@ const OAUTH_MESSAGE = 'github-oauth-complete'
 const OAUTH_ERROR_KEY = 'github_oauth_error'
 const OAUTH_PENDING_PREFIX = 'github_oauth_pending:'
 
-interface PendingOAuth {
-  verifier: string
-  returnTo: string
-}
-
 interface GitHubUser {
   login: string
   avatar_url: string
-}
-
-export interface CallbackResult {
-  ok: boolean
-  error?: string
-  returnTo?: string
-  isPopup?: boolean
 }
 
 function generateCodeVerifier(): string {
@@ -73,38 +61,8 @@ function setCookie(name: string, value: string, maxAge: number): void {
   document.cookie = `${name}=${encodeURIComponent(value)}; Path=/; SameSite=Lax; Max-Age=${maxAge}${secure}`
 }
 
-function getSafeReturnTo(value: string | null): string {
-  if (typeof window === 'undefined' || !value) return '/'
-  try {
-    const url = new URL(value, window.location.origin)
-    if (url.origin !== window.location.origin) return '/'
-    if (url.pathname === AUTH_CALLBACK_PATH) return '/'
-    return `${url.pathname}${url.search}${url.hash}`
-  } catch {
-    return '/'
-  }
-}
-
 function getOAuthPendingKey(state: string): string {
   return `${OAUTH_PENDING_PREFIX}${state}`
-}
-
-function readPendingOAuth(state: string | null): PendingOAuth | null {
-  if (typeof window === 'undefined' || !state) return null
-  try {
-    const raw = localStorage.getItem(getOAuthPendingKey(state))
-    if (!raw) return null
-    const pending = JSON.parse(raw)
-    if (typeof pending.verifier !== 'string' || typeof pending.returnTo !== 'string') return null
-    return pending
-  } catch {
-    return null
-  }
-}
-
-function clearPendingOAuth(state: string | null): void {
-  if (typeof window === 'undefined' || !state) return
-  try { localStorage.removeItem(getOAuthPendingKey(state)) } catch { /* storage may be unavailable */ }
 }
 
 const isLoggedIn = ref(false)
@@ -167,7 +125,12 @@ function startPopupMessageListener(): void {
 
     releaseAuthPopup()
     if (event.data.ok) {
-      void loadSession()
+      if (event.data.user) {
+        user.value = event.data.user
+        isLoggedIn.value = true
+      } else {
+        void loadSession()
+      }
     } else if (event.data.error && event.data.error !== 'access_denied' && event.data.error !== 'GitHub 登录已取消') {
       console.error('GitHub OAuth error:', event.data.error)
       alert(event.data.error)
@@ -238,104 +201,6 @@ export function useGitHubAuth() {
     }
   }
 
-  async function handleCallback(): Promise<CallbackResult> {
-    const urlParams = new URLSearchParams(window.location.search)
-    const code = urlParams.get('code')
-    const oauthError = urlParams.get('error')
-    const oauthErrorDesc = urlParams.get('error_description')
-    const state = urlParams.get('state')
-    const pending = readPendingOAuth(state)
-    const returnTo = getSafeReturnTo(pending?.returnTo || '/')
-    const isPopup = Boolean(window.opener && window.opener !== window)
-
-    function finishPopup(ok: boolean, error?: string): void {
-      if (!isPopup) return
-      try {
-        window.opener?.postMessage({ type: OAUTH_MESSAGE, ok, error }, window.location.origin)
-      } catch (e) {
-        console.error('Failed to postMessage to opener:', e)
-      }
-      try {
-        window.close()
-      } catch (e) {
-        console.error('Failed to close popup:', e)
-      }
-    }
-
-    function clearCallbackState(): void {
-      clearPendingOAuth(state)
-      setCookie(OAUTH_STATE_COOKIE, '', 0)
-    }
-
-    if (!code && !oauthError && !state) {
-      clearCallbackState()
-      if (isPopup) finishPopup(false, '未检测到登录授权信息')
-      return { ok: false, error: '未检测到登录授权信息', returnTo: '/', isPopup }
-    }
-
-    if (!code) {
-      const errorMsg = oauthError === 'access_denied'
-        ? 'GitHub 登录已取消'
-        : (oauthErrorDesc || oauthError || 'GitHub 授权失败')
-      console.error('GitHub OAuth error:', errorMsg)
-      clearCallbackState()
-      if (isPopup) {
-        finishPopup(false, errorMsg)
-      } else {
-        if (oauthError !== 'access_denied') {
-          try { sessionStorage.setItem(OAUTH_ERROR_KEY, errorMsg) } catch {}
-        }
-        window.location.replace(returnTo)
-      }
-      return { ok: false, error: errorMsg, returnTo, isPopup }
-    }
-
-    if (!pending?.verifier || !state) {
-      const errorMsg = '登录状态已失效，请重试'
-      console.error('Invalid OAuth callback state')
-      clearCallbackState()
-      if (isPopup) {
-        finishPopup(false, errorMsg)
-      } else {
-        try { sessionStorage.setItem(OAUTH_ERROR_KEY, errorMsg) } catch {}
-        window.location.replace(returnTo)
-      }
-      return { ok: false, error: errorMsg, returnTo, isPopup }
-    }
-
-    try {
-      const res = await fetch('/api/auth/callback', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code, code_verifier: pending.verifier, state }),
-      })
-      const data = await res.json()
-      if (!res.ok || !data.user?.login) throw new Error(data.error || 'GitHub 登录失败')
-
-      user.value = { login: data.user.login, avatar_url: data.user.avatar_url || '' }
-      isLoggedIn.value = true
-      clearCallbackState()
-      if (isPopup) {
-        finishPopup(true)
-      } else {
-        window.location.replace(returnTo)
-      }
-      return { ok: true, returnTo, isPopup }
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'GitHub 登录失败'
-      console.error('OAuth callback error:', error)
-      clearCallbackState()
-      if (isPopup) {
-        finishPopup(false, errorMsg)
-      } else {
-        try { sessionStorage.setItem(OAUTH_ERROR_KEY, errorMsg) } catch {}
-        window.location.replace(returnTo)
-      }
-      return { ok: false, error: errorMsg, returnTo, isPopup }
-    }
-  }
-
   async function logout(): Promise<boolean> {
     if (LOCAL_AUTH) {
       isLoggedIn.value = false
@@ -363,7 +228,6 @@ export function useGitHubAuth() {
     user,
     login,
     loginPending,
-    handleCallback,
     consumeAuthError: () => {
       if (typeof window === 'undefined') return null
       try {
