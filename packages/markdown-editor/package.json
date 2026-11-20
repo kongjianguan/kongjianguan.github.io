@@ -6,6 +6,7 @@
   "description": "Inline Markdown editor with block-level CodeMirror editing and pluggable storage",
   "exports": {
     ".": "./src/index.ts",
+    "./frontmatter": "./src/frontmatter.ts",
     "./style.css": "./src/style.css"
   },
   "scripts": {

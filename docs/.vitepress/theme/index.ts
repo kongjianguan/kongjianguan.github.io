@@ -1,6 +1,7 @@
 // .vitepress/theme/index.ts
 import Teek from "vitepress-theme-teek";
 import type { Theme } from 'vitepress';
+import { defineAsyncComponent } from 'vue';
 
 // 引入样式
 import "./style/index.scss";  // 自定义的全局样式
@@ -14,14 +15,21 @@ import "vitepress-theme-teek/theme-chalk/tk-nav-translation.css"; // 导航栏�
 
 // 自定义组件，例如 404，贡献日历
 import TeekLayoutProvider from "./components/TeekLayoutProvider.vue";
-
-// mermaid 插件
-import { initComponent } from 'vitepress-plugin-legend/component';
+import { data as diagramPages } from './diagrams.data.mts';
 
 export default {
   extends: Teek,
-  enhanceApp({ app }) {
-    initComponent(app);
+  enhanceApp({ app, router }) {
+    app.component('red', defineAsyncComponent(() => import('./components/RedPostLayout.vue')));
+    const previousAfterPageLoad = router.onAfterPageLoad;
+    let diagramsReady: Promise<void> | undefined;
+    router.onAfterPageLoad = async href => {
+      await previousAfterPageLoad?.(href);
+      const path = decodeURI(new URL(href, 'https://vitepress.local').pathname).replace(/\/$/, '');
+      if (!diagramPages.includes(path)) return;
+      diagramsReady ??= import('./diagrams').then(({ initComponent }) => initComponent(app));
+      await diagramsReady;
+    };
   },
   Layout: TeekLayoutProvider
 } satisfies Theme;

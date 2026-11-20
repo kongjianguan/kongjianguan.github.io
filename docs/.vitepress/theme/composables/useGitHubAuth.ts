@@ -5,7 +5,10 @@ const AUTH_CALLBACK_PATH = '/__auth/callback'
 const REDIRECT_URI = typeof window !== 'undefined'
   ? `${window.location.origin}${AUTH_CALLBACK_PATH}`
   : ''
-const LOCAL_EDIT = import.meta.env.DEV && import.meta.env.VITE_LOCALEDIT === '1'
+const LOCAL_AUTH = import.meta.env.DEV && [
+  import.meta.env.VITE_LOCAL_AUTH,
+  import.meta.env.VITE_LOCALEDIT,
+].includes('1')
 const OAUTH_STATE_COOKIE = 'github_oauth_state'
 const OAUTH_MESSAGE = 'github-oauth-complete'
 const OAUTH_ERROR_KEY = 'github_oauth_error'
@@ -175,18 +178,23 @@ function startPopupMessageListener(): void {
 }
 
 export function useGitHubAuth() {
-  if (typeof window !== 'undefined' && LOCAL_EDIT && !isLoggedIn.value) {
+  if (typeof window !== 'undefined' && LOCAL_AUTH && !isLoggedIn.value) {
     isLoggedIn.value = true
     user.value = { login: 'local-dev', avatar_url: '' }
   }
 
-  if (typeof window !== 'undefined' && !LOCAL_EDIT && !sessionCheckStarted) {
+  if (typeof window !== 'undefined' && !LOCAL_AUTH && !sessionCheckStarted) {
     sessionCheckStarted = true
     void loadSession()
   }
   startPopupMessageListener()
 
   async function login() {
+    if (LOCAL_AUTH) {
+      isLoggedIn.value = true
+      user.value = { login: 'local-dev', avatar_url: '' }
+      return
+    }
     if (loginPending.value || (authPopup && !authPopup.closed)) return
     loginPending.value = true
 
@@ -329,7 +337,7 @@ export function useGitHubAuth() {
   }
 
   async function logout(): Promise<boolean> {
-    if (LOCAL_EDIT) {
+    if (LOCAL_AUTH) {
       isLoggedIn.value = false
       user.value = null
       return true

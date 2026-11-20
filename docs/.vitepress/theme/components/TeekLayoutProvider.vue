@@ -1,30 +1,32 @@
 <script setup lang="ts" name="TeekLayoutProvider">
 import Teek from "vitepress-theme-teek";
-import ContributeChart from "./ContributeChart.vue";
 import NotFound from "./404.vue";
 import ArticleContent from "./ArticleContent.vue";
 import LoginButton from "./LoginButton.vue";
-import NewArticleDialog from "./NewArticleDialog.vue";
 
-import { computed, ref, onMounted } from 'vue';
+import { computed, defineAsyncComponent, ref, onMounted } from 'vue';
 import { useData, useRoute, withBase } from 'vitepress';
 import { useGitHubAuth } from '../composables/useGitHubAuth';
 import { useEditorEntry } from '../composables/useEditorEntry';
+import { useLive2D } from '../composables/useLive2D';
+import { isRedPost } from '../redPost';
+
+const ContributeChart = defineAsyncComponent(() => import('./ContributeChart.vue'));
+const NewArticleDialog = defineAsyncComponent(() => import('./NewArticleDialog.vue'));
 
 const showNewDialog = ref(false);
-const { page } = useData();
+const { page, frontmatter } = useData();
+const isPhotoPage = computed(() => isRedPost(frontmatter.value));
 const route = useRoute();
 const { isLoggedIn } = useGitHubAuth();
 const { editRequested, requestEdit, requestReadMode } = useEditorEntry();
 const callbackStatus = ref<'loading' | 'error'>('loading');
 const callbackError = ref<string>('');
-const hasEditablePage = computed(() => Boolean(page.value.relativePath));
+const isHomePage = computed(() => frontmatter.value.layout === 'home' || page.value.relativePath === 'index.md');
 const isAuthCallback = computed(() => route.path === '/__auth/callback');
-const editButtonTitle = computed(() => {
-  if (!isLoggedIn.value) return '登录 GitHub 后可编辑文章';
-  if (!hasEditablePage.value) return '当前页面不可编辑';
-  return editRequested.value ? '阅读模式' : '编辑文章';
-});
+const hasEditablePage = computed(() => Boolean(page.value.relativePath) && !isHomePage.value && !isAuthCallback.value);
+useLive2D(() => !isAuthCallback.value);
+const editButtonTitle = computed(() => editRequested.value ? '阅读模式' : '编辑文章');
 
 function handleEditModeToggle() {
   if (editRequested.value) {
@@ -41,8 +43,6 @@ onMounted(async () => {
     window.history.replaceState({}, '', currentUrl.pathname + currentUrl.search + currentUrl.hash);
   }
 
-  const { pathname, search } = window.location;
-  const callbackParams = new URLSearchParams(search)
   if (isAuthCallback.value) {
     const { handleCallback } = useGitHubAuth();
     try {
@@ -65,40 +65,6 @@ onMounted(async () => {
   if (authErr) {
     alert(authErr);
   }
-
-  const { loadOml2d } = await import('oh-my-live2d');
-  loadOml2d({
-    dockedPosition: 'left',
-    primaryColor: '#A0C6F9', // 模型的主色调，默认为粉色
-    mobileDisplay: false, // 是否在移动设备上显示模型，默认为 false
-    models: [
-      {
-        path: withBase('/anon_037_live_default/model.json'),
-      },
-    ],
-
-    menus: {
-      disable: false, // 禁用右键菜单
-      items: items => items.map(item =>
-        ['About', 'SwitchModel', 'SwitchModelClothes'].includes(item.id)
-          ? { id: item.id, icon: item.icon, title: item.title }
-          : item,
-      ),
-    },
-
-    tips: {
-      copyTips: { // 复制提示文本
-        message: ['你复制了什么内容呢?记得注明出处哦~']
-      },
-      style: {
-        zIndex: 9999, // 层级最高，确保文字在画布之上
-        top: 'auto', // 覆盖默认 top:0，避免气泡在舞台内与模型重叠
-        bottom: 'calc(100%)', // 气泡底部对齐舞台上边缘
-        // transform: 'translateX(-50%)' // 水平居中
-      },
-    }
-
-  });
 });
 
 function handleNewArticle(payload: { path: string; title: string; template: string }) {
@@ -135,39 +101,53 @@ function handleNewArticle(payload: { path: string; title: string; template: stri
 
   <Teek.Layout v-else>
     <template #nav-bar-content-after>
-      <button
-        class="nav-action-btn edit-article-btn"
-        :class="{ active: editRequested }"
-        :disabled="!isLoggedIn || !hasEditablePage"
-        :title="editButtonTitle"
-        :aria-label="editRequested ? '阅读模式' : '编辑文章'"
-        :aria-pressed="editRequested"
-        @click="handleEditModeToggle"
-      >
-        <svg v-if="editRequested" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2Z"/>
-          <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7Z"/>
-        </svg>
-        <svg v-else viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M12 20h9"/>
-          <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/>
-        </svg>
-      </button>
-      <LoginButton />
-      <button class="nav-action-btn new-article-btn" @click="showNewDialog = true" title="新建文章" aria-label="新建文章">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="12" y1="5" x2="12" y2="19"/>
-          <line x1="5" y1="12" x2="19" y2="12"/>
-        </svg>
-      </button>
+      <div class="nav-editor-actions">
+        <button
+          v-if="isLoggedIn && hasEditablePage"
+          class="nav-action-btn edit-article-btn"
+          :class="{ active: editRequested }"
+          :title="editButtonTitle"
+          :aria-label="editButtonTitle"
+          :aria-pressed="editRequested"
+          @click="handleEditModeToggle"
+        >
+          <svg v-if="editRequested" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2Z"/>
+            <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7Z"/>
+          </svg>
+          <svg v-else viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 20h9"/>
+            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/>
+          </svg>
+        </button>
+        <LoginButton>
+          <template #menu>
+            <button class="user-menu-item nav-mobile-create" @click="showNewDialog = true">
+              新建文章
+            </button>
+          </template>
+        </LoginButton>
+        <button v-if="isLoggedIn" class="nav-action-btn new-article-btn" @click="showNewDialog = true" title="新建文章" aria-label="新建文章">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"/>
+            <line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+        </button>
+      </div>
     </template>
 
     <template #home-hero-before>
-      <ArticleContent />
+      <ArticleContent standalone-only />
     </template>
 
     <template #doc-before>
-      <ArticleContent />
+      <ArticleContent v-if="hasEditablePage" />
+    </template>
+
+    <template #layout-top>
+      <div v-if="isPhotoPage && hasEditablePage" class="red-post-editor">
+        <ArticleContent />
+      </div>
     </template>
 
     <template #teek-archives-top-before>
@@ -180,10 +160,23 @@ function handleNewArticle(payload: { path: string; title: string; template: stri
 
   </Teek.Layout>
 
-  <NewArticleDialog v-model:visible="showNewDialog" @create="handleNewArticle" />
+  <NewArticleDialog v-if="showNewDialog && isLoggedIn" @update:visible="showNewDialog = $event" @create="handleNewArticle" />
 </template>
 
 <style lang="scss">
+.red-post-editor {
+  width: min(880px, calc(100% - 32px));
+  margin-inline: auto;
+}
+
+.red-post-editor:not(:has(.editor-controls)) {
+  display: none;
+}
+
+.red-post-editor:has(.editor-controls) {
+  padding-top: var(--vp-nav-height);
+}
+
 .tk-my.is-circle-bg {
   margin-bottom: 20px;
 
@@ -207,6 +200,64 @@ function handleNewArticle(payload: { path: string; title: string; template: stri
   color: var(--vp-c-text-1);
   cursor: pointer;
   transition: color 0.2s, background-color 0.2s, opacity 0.2s;
+  flex-shrink: 0;
+}
+
+.nav-editor-actions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.VPNavBar .VPNavBarExtra,
+.VPNavBar .VPNavBarSocialLinks {
+  margin-right: 0;
+}
+
+.nav-mobile-create {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .VPNavBar .wrapper {
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+
+  .VPNavBar .container > .title {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .VPNavBarTitle,
+  .VPNavBarTitle .title > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .VPNavBar .content {
+    flex: 0 0 auto;
+    min-width: 0;
+  }
+
+  .VPNavBar .content-body {
+    column-gap: 0;
+  }
+
+  .nav-action-btn {
+    width: 44px;
+    height: 44px;
+    margin: 0;
+  }
+
+  .new-article-btn {
+    display: none;
+  }
+
+  .nav-mobile-create {
+    display: flex;
+  }
 }
 
 .nav-action-btn:hover:not(:disabled),

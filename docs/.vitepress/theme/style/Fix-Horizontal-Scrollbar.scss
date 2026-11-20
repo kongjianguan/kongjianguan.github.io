@@ -7,6 +7,11 @@ body,
   overflow-x: hidden;
 }
 
+// 编辑工具栏跟随页面纵向滚动，同时裁切横向溢出。
+:is(html, body, #app):has(.blog-editor) {
+  overflow-x: clip;
+}
+
 // 避免元素宽度把视口撑爆
 *,
 *::before,

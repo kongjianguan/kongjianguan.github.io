@@ -6,10 +6,12 @@
   "packageManager": "pnpm@11.17.0",
   "scripts": {
     "dev": "vitepress dev docs",
+    "dev:local": "LOCALIMGSRC=1 LOCAL_AUTH=1 vitepress dev docs",
     "build": "NODE_OPTIONS=--max-old-space-size=5120 vitepress build docs",
     "preview": "vitepress preview docs",
     "test": "pnpm --filter @kongjianguan/markdown-editor test",
     "test:e2e": "PLAYWRIGHT_BROWSERS_PATH=.scratch/playwright-browsers playwright test",
+    "test:e2e:production": "PLAYWRIGHT_BROWSERS_PATH=.scratch/playwright-browsers playwright test -c playwright.production.config.ts",
     "typecheck": "pnpm --filter @kongjianguan/markdown-editor typecheck",
     "validate:api": "node scripts/validate-api-sources.mjs",
     "validate:content": "node scripts/validate-content.mjs"
@@ -17,6 +19,7 @@
   "dependencies": {
     "@kongjianguan/markdown-editor": "workspace:*",
     "echarts": "^6.1.0",
+    "is-mobile": "^5.0.0",
     "markdown-it": "^14.3.0",
     "markdown-it-mathjax3": "^4.3.2",
     "mermaid": "^11.16.0",

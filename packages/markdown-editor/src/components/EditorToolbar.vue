@@ -1,7 +1,6 @@
 <script setup lang="ts" name="EditorToolbar">
 defineProps<{
   filePath: string
-  title: string
   isDirty: boolean
   isSaving: boolean
   draftSaved: boolean
@@ -21,7 +20,6 @@ const emit = defineEmits<{
 <template>
   <div class="editor-toolbar">
     <div class="toolbar-left">
-      <span v-if="title" class="toolbar-title">{{ title }}</span>
       <span class="toolbar-path">{{ filePath || emptyPathLabel || '(新建文件)' }}</span>
     </div>
 
@@ -50,11 +48,18 @@ const emit = defineEmits<{
 
 <style scoped>
 .editor-toolbar {
+  position: sticky;
+  top: var(--mde-toolbar-top, 0px);
+  z-index: 20;
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 10px 0;
   flex-wrap: wrap;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--mde-divider);
+  background: color-mix(in srgb, var(--mde-bg) 85%, transparent);
+  backdrop-filter: blur(12px);
 }
 
 .toolbar-left {
@@ -63,13 +68,6 @@ const emit = defineEmits<{
   display: flex;
   align-items: center;
   gap: 8px;
-}
-
-.toolbar-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--mde-text-1);
-  white-space: nowrap;
 }
 
 .toolbar-path {
@@ -133,7 +131,6 @@ const emit = defineEmits<{
 }
 
 @media (max-width: 767px) {
-  .toolbar-title { display: none; }
   .toolbar-status { display: none; }
 }
 </style>

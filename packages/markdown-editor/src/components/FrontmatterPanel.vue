@@ -1,8 +1,8 @@
 <script setup lang="ts" name="FrontmatterPanel">
-import { ref, watch } from 'vue'
+import { ref, useId, watch } from 'vue'
 const props = defineProps<{
   frontmatter: Record<string, any>
-  labels?: Partial<Record<'toggle' | 'title' | 'date' | 'categories' | 'tags' | 'permalink' | 'description', string>>
+  labels?: Partial<Record<'title' | 'date' | 'categories' | 'tags' | 'permalink' | 'description', string>>
   placeholders?: Partial<Record<'title' | 'categories' | 'tags' | 'permalink' | 'description', string>>
 }>()
 
@@ -10,9 +10,9 @@ const emit = defineEmits<{
   'update:frontmatter': [value: Record<string, any>]
 }>()
 
-const collapsed = defineModel<boolean>('collapsed', { default: false })
 const categoriesInput = ref('')
 const tagsInput = ref('')
+const titleFieldId = useId()
 
 watch(() => props.frontmatter.categories, value => {
   categoriesInput.value = Array.isArray(value) ? value.join(', ') : value || ''
@@ -22,7 +22,6 @@ watch(() => props.frontmatter.tags, value => {
 }, { immediate: true })
 
 const defaultLabels = {
-  toggle: '文章属性',
   title: '标题',
   date: '日期',
   categories: '分类',
@@ -59,16 +58,12 @@ function setArrayField(key: string, value: string) {
 </script>
 
 <template>
-  <div class="fm-panel" :class="{ collapsed }">
-    <button class="fm-toggle" @click="collapsed = !collapsed">
-      <span class="fm-toggle-icon">{{ collapsed ? '>' : 'v' }}</span>
-      {{ label('toggle') }}
-    </button>
-
-    <div v-show="!collapsed" class="fm-fields">
+  <div class="fm-panel">
+    <div class="fm-fields">
       <div class="fm-row">
-        <label class="fm-label">{{ label('title') }}</label>
+        <label class="fm-label" :for="titleFieldId">{{ label('title') }}</label>
         <input
+          :id="titleFieldId"
           class="fm-input"
           :value="frontmatter.title || ''"
           @input="setField('title', ($event.target as HTMLInputElement).value)"
@@ -131,62 +126,36 @@ function setArrayField(key: string, value: string) {
 </template>
 
 <style scoped>
-.fm-panel {
-  border: 1px solid var(--mde-divider);
-  border-radius: 8px;
-  margin-bottom: 12px;
-  background: var(--mde-bg-soft);
-  overflow: hidden;
-}
-
-.fm-toggle {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  padding: 8px 12px;
-  border: none;
-  background: none;
-  color: var(--mde-text-2);
-  font-size: 13px;
-  cursor: pointer;
-  text-align: left;
-}
-
-.fm-toggle:hover {
-  background: var(--mde-bg-mute);
-}
-
-.fm-toggle-icon {
-  font-size: 10px;
-  width: 12px;
-  text-align: center;
-}
-
 .fm-fields {
-  padding: 0 12px 12px;
+  display: grid;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 16px;
+  border: 1px solid var(--mde-divider);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--mde-bg-soft) 85%, transparent);
+  backdrop-filter: blur(12px);
 }
 
-.fm-row {
-  margin-bottom: 8px;
-}
+.fm-row { min-width: 0; }
 
 .fm-label {
   display: block;
   font-size: 12px;
-  color: var(--mde-text-3);
+  color: var(--mde-text-2);
   margin-bottom: 3px;
 }
 
 .fm-input,
 .fm-textarea {
   width: 100%;
-  padding: 5px 8px;
+  min-height: 40px;
+  padding: 8px 10px;
   border: 1px solid var(--mde-divider);
-  border-radius: 4px;
+  border-radius: 9px;
   background: var(--mde-bg);
   color: var(--mde-text-1);
-  font-size: 13px;
+  font-size: 16px;
   outline: none;
   box-sizing: border-box;
   font-family: inherit;
@@ -201,9 +170,8 @@ function setArrayField(key: string, value: string) {
   resize: vertical;
 }
 
-@media (max-width: 767px) {
-  .fm-row {
-    margin-bottom: 6px;
-  }
+@media (min-width: 640px) {
+  .fm-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .fm-row:last-child { grid-column: 1 / -1; }
 }
 </style>

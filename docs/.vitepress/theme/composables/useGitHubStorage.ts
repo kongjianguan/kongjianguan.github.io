@@ -1,16 +1,14 @@
 import { useGitHubAuth } from './useGitHubAuth'
 import type { EditorStorage } from '@kongjianguan/markdown-editor'
 
-const REPO_OWNER = 'kongjianguan'
-const REPO_NAME = 'kongjianguan.github.io'
-const BRANCH = 'main'
-const API_BASE = 'https://api.github.com'
-
 const ARTICLE_DIRS = ['programming', 'Software', 'Life', '历程', '随笔', '@pages']
 
-const LOCAL_EDIT = import.meta.env.DEV && import.meta.env.VITE_LOCALEDIT === '1'
+const LOCAL_AUTH = import.meta.env.DEV && [
+  import.meta.env.VITE_LOCAL_AUTH,
+  import.meta.env.VITE_LOCALEDIT,
+].includes('1')
 
-const localMdSources: Record<string, string> = LOCAL_EDIT
+const localMdSources: Record<string, string> = LOCAL_AUTH
   ? import.meta.glob('/**/*.md', { query: '?raw', import: 'default', eager: true })
   : {}
 
@@ -45,13 +43,12 @@ function validatePath(path: string): void {
     /^package(-lock)?\.json$/, /^pnpm-lock/, /^vercel\.json$/,
     /^\.env/, /^docs\/\.vitepress\//,
   ]
-  if (dangerous.some(re => re.test(path))) {
+  if (path === 'docs/index.md' || dangerous.some(re => re.test(path))) {
     throw new Error('非法路径：受保护位置')
   }
 
   const isArticle = path.endsWith('.md') && (
     ARTICLE_DIRS.some(dir => path.startsWith(`docs/${dir}/`)) ||
-    path === 'docs/index.md' ||
     /^docs\/[^/]+\.md$/.test(path)
   )
   const isImage = path.startsWith('docs/public/images/') &&
@@ -62,23 +59,26 @@ function validatePath(path: string): void {
   }
 }
 
-function encodeRepoPath(path: string): string {
-  return path.split('/').map(segment => encodeURIComponent(segment)).join('/')
-}
-
-export function createGitHubStorage(): EditorStorage {
+export function createGitHubStorage(options: { photoPost?: boolean } = {}): EditorStorage {
   const { getCsrfToken } = useGitHubAuth()
 
   async function readFile(path: string) {
     validatePath(path)
-    const url = new URL(
-      `${API_BASE}/repos/${REPO_OWNER}/${REPO_NAME}/contents/${encodeRepoPath(path)}`,
-    )
-    url.searchParams.set('ref', BRANCH)
-    const res = await fetch(url, { headers: { Accept: 'application/vnd.github+json' } })
+    if (LOCAL_AUTH) {
+      const content = getLocalContent(path)
+      return content === null ? null : { content, sha: 'local' }
+    }
+    const params = new URLSearchParams({ path })
+    const endpoint = `/api/github/contents?${params}`
+    const res = await fetch(endpoint, {
+      credentials: 'include',
+      cache: 'no-store',
+      headers: { Accept: 'application/vnd.github+json' },
+    })
     if (res.status === 404) return null
-    if (!res.ok) throw new Error(`GitHub API error: ${res.status}`)
     const data = await res.json()
+    if (res.status === 401) throw new Error('GitHub 登录已失效，请重新登录后读取文章')
+    if (!res.ok) throw new Error(data.error || `读取 GitHub 文章失败（${res.status}）`)
     if (typeof data.content !== 'string' || typeof data.sha !== 'string') {
       throw new Error('GitHub 返回的不是文件内容')
     }
@@ -91,6 +91,9 @@ export function createGitHubStorage(): EditorStorage {
   }
 
   async function writeFile(payload: Record<string, unknown>) {
+    if (LOCAL_AUTH) {
+      throw new Error('本地登录只支持本机编辑，保存到 GitHub 需要使用 GitHub 登录')
+    }
     const res = await fetch('/api/github/contents', {
       method: 'POST',
       credentials: 'include',
@@ -109,10 +112,10 @@ export function createGitHubStorage(): EditorStorage {
   return {
     readFile,
 
-    ...(LOCAL_EDIT
+    ...(LOCAL_AUTH
       ? {
           readLocalFile: (path: string) => getLocalContent(path),
-          localFileNotice: '本地编辑模式未连接 GitHub，提交前需要有效的 GitHub 登录状态',
+          localFileNotice: '本地登录只支持本机编辑，保存到 GitHub 需要使用 GitHub 登录',
         }
       : {}),
 
@@ -127,12 +130,16 @@ export function createGitHubStorage(): EditorStorage {
     },
 
     async uploadImage(file) {
+      if (LOCAL_AUTH) {
+        throw new Error('本地登录只支持本机编辑，上传图片需要使用 GitHub 登录')
+      }
       if (file.size > 5 * 1024 * 1024) {
         throw new Error('Image too large (max 5MB)')
       }
 
       const form = new FormData()
       form.append('file', file)
+      if (options.photoPost) form.append('purpose', 'red-post')
       const res = await fetch('/api/github/upload', {
         method: 'POST',
         credentials: 'include',
@@ -140,7 +147,8 @@ export function createGitHubStorage(): EditorStorage {
         body: form,
       })
       const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || 'Upload failed')
+      if (res.status === 401) throw new Error('GitHub 登录已失效，请重新登录后上传照片')
+      if (!res.ok) throw new Error(data.error || '图片上传失败')
       return typeof data.url === 'string' ? data.url : null
     },
   }

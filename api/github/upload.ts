@@ -72,18 +72,38 @@ export default async function handler(request: Request) {
       return json({ error: 'Invalid image content' }, 415)
     }
 
-    const filename = `${new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14)}-${randomToken(6)}.${ext}`
+    const photoPost = form.get('purpose') === 'red-post'
+    const digest = photoPost ? await crypto.subtle.digest('SHA-256', bytes) : null
+    const filename = digest
+      ? `uploads/${Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')}.${ext}`
+      : `${new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14)}-${randomToken(6)}.${ext}`
     const path = `docs/public/images/${filename}`
     const safePath = validatePath(path)
 
-    const response = await githubRequest(token, safePath, {
+    const write: RequestInit = {
       method: 'PUT',
       body: JSON.stringify({
         message: `upload: ${filename}`,
         content: encodeBytes(bytes),
         branch: BRANCH,
       }),
-    })
+    }
+    let response = await githubRequest(token, safePath, write)
+    if (photoPost) {
+      // 并发提交可能争用分支。重试时使用相同的文件名和内容。
+      for (let attempt = 0; response.status === 409 && attempt < 4; attempt++) {
+        await response.body?.cancel()
+        await new Promise(resolve => setTimeout(resolve, 150 * 2 ** attempt + Math.random() * 150))
+        response = await githubRequest(token, safePath, write)
+      }
+      if (response.status === 422) {
+        const existing = await githubRequest(token, safePath, { method: 'GET' })
+        if (existing.ok) {
+          const data = await existing.json()
+          if (typeof data.sha === 'string') return json({ url: `/images/${filename}`, sha: data.sha })
+        }
+      }
+    }
     const data = await response.json().catch(() => ({}))
     if (!response.ok) return json({ error: 'GitHub upload failed' }, response.status)
     if (typeof data.content?.sha !== 'string') return json({ error: 'GitHub did not return a file version' }, 502)

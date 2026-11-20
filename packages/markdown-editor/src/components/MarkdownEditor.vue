@@ -17,7 +17,6 @@ const props = withDefaults(defineProps<{
   active: boolean
   filePath: string
   fallbackContent?: string
-  title?: string
   isLoggedIn?: boolean
   expectNew?: boolean
   standalone?: boolean
@@ -28,7 +27,6 @@ const props = withDefaults(defineProps<{
   labels?: Record<string, any>
 }>(), {
   fallbackContent: '',
-  title: '',
   isLoggedIn: false,
   expectNew: false,
   standalone: false,
@@ -73,7 +71,9 @@ const images = createPendingImages({
 })
 
 const showCommitDialog = ref(false)
-const fmCollapsed = ref(false)
+const fmCollapsed = ref(true)
+const titleInputRef = ref<HTMLTextAreaElement>()
+const bodyEditorRef = ref<{ focus: () => void }>()
 const isPreparingCommit = ref(false)
 const initialSelection = ref(0)
 /*
@@ -86,7 +86,38 @@ const draftError = ref('')
 const repairingFrontmatter = ref(false)
 let draftSaveTimer: ReturnType<typeof setTimeout> | undefined
 
-const articleTitle = computed(() => (frontmatter.value?.title as string) || props.title || '')
+const inlineTitle = computed(() => String(frontmatter.value.title ?? ''))
+const documentDate = computed(() => {
+  const value = frontmatter.value.date
+  return typeof value === 'string' ? value.match(/^\d{4}-\d{2}-\d{2}/)?.[0] ?? value : ''
+})
+const primaryCategory = computed(() => metadataList(frontmatter.value.categories)[0])
+const currentTags = computed(() => [...new Set(metadataList(frontmatter.value.tags))])
+
+function metadataList(value: unknown): string[] {
+  const entries = typeof value === 'string' ? value.split(',') : Array.isArray(value) ? value : []
+  return entries.filter((entry): entry is string => typeof entry === 'string')
+    .map(entry => entry.trim())
+    .filter(Boolean)
+}
+
+function resizeInlineTitle(): void {
+  const input = titleInputRef.value
+  if (!input) return
+  input.style.height = 'auto'
+  input.style.height = `${input.scrollHeight}px`
+}
+
+function handleInlineTitleInput(event: Event): void {
+  const input = event.target as HTMLTextAreaElement
+  void handleFrontmatterUpdate({ ...frontmatter.value, title: input.value })
+}
+
+function focusBodyEditor(event: KeyboardEvent): void {
+  if (event.isComposing) return
+  event.preventDefault()
+  bodyEditorRef.value?.focus()
+}
 
 async function saveEditorDraft(withNotice = true): Promise<boolean | 'changed'> {
   const path = filePath.value
@@ -259,13 +290,17 @@ watch(content, () => {
 
 onMounted(() => {
   window.addEventListener('beforeunload', handleBeforeUnload)
+  window.addEventListener('resize', resizeInlineTitle)
 })
+
+watch([titleInputRef, inlineTitle], resizeInlineTitle, { flush: 'post' })
 
 onBeforeUnmount(() => {
   clearTimeout(draftSaveTimer)
   if (isEditing.value && contentLoaded.value) saveEditorDraft(false)
   finishEditing()
   window.removeEventListener('beforeunload', handleBeforeUnload)
+  window.removeEventListener('resize', resizeInlineTitle)
   images.release()
 })
 
@@ -285,7 +320,6 @@ defineExpose({
   <div v-if="isEditing" class="editor-controls">
     <EditorToolbar
       :file-path="filePath"
-      :title="articleTitle"
       :is-dirty="isDirty"
       :is-saving="isSaving || isPreparingCommit"
       :draft-saved="draftSaved"
@@ -323,18 +357,45 @@ defineExpose({
       @click="repairingFrontmatter = false"
     >应用文章属性修复</button>
 
-    <FrontmatterPanel
-      v-if="contentLoaded && isLoggedIn && !repairingFrontmatter"
-      :frontmatter="frontmatter"
-      :labels="labels?.frontmatter"
-      :placeholders="labels?.placeholders"
-      @update:frontmatter="handleFrontmatterUpdate"
-      v-model:collapsed="fmCollapsed"
-    />
-
-    <div class="mde-editor-body">
+    <div v-if="contentLoaded && !repairingFrontmatter" class="mde-editor-body">
+      <div class="mde-doc-header">
+        <textarea
+          ref="titleInputRef"
+          class="mde-inline-title"
+          :value="inlineTitle"
+          aria-label="文章标题"
+          placeholder="无标题文章"
+          rows="1"
+          @input="handleInlineTitleInput"
+          @keydown.enter="focusBodyEditor"
+        />
+        <div class="mde-doc-meta">
+          <time v-if="documentDate" class="mde-doc-date" :datetime="documentDate">{{ documentDate }}</time>
+          <span v-if="primaryCategory" class="mde-doc-category">{{ primaryCategory }}</span>
+          <span v-for="tag in currentTags" :key="tag" class="mde-doc-tag">#{{ tag }}</span>
+          <button
+            v-if="isLoggedIn"
+            type="button"
+            class="mde-properties-btn"
+            :aria-expanded="!fmCollapsed"
+            @click="fmCollapsed = !fmCollapsed"
+          >
+            <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path d="M4 6h12M4 10h12M4 14h8" />
+            </svg>
+            {{ labels?.frontmatter?.toggle ?? '文章属性' }}
+          </button>
+        </div>
+        <FrontmatterPanel
+          v-if="isLoggedIn && !fmCollapsed"
+          :frontmatter="frontmatter"
+          :labels="labels?.frontmatter"
+          :placeholders="labels?.placeholders"
+          @update:frontmatter="handleFrontmatterUpdate"
+        />
+      </div>
       <CodeMirrorEditor
-        v-if="contentLoaded && !repairingFrontmatter"
+        ref="bodyEditorRef"
         :model-value="bodyContent"
         :initial-selection="initialSelection"
         :stage-image="images.stage"

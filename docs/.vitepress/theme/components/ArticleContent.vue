@@ -1,11 +1,12 @@
 <script setup lang="ts" name="ArticleContent">
-import { computed, nextTick, onMounted, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, nextTick, onMounted, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 import { useData, useRoute, useRouter } from 'vitepress'
-import { MarkdownEditor } from '@kongjianguan/markdown-editor'
+import type { EditorStorage } from '@kongjianguan/markdown-editor'
 import { useGitHubAuth } from '../composables/useGitHubAuth'
 import { useEditorEntry } from '../composables/useEditorEntry'
-import { createGitHubStorage } from '../composables/useGitHubStorage'
 import LoginButton from './LoginButton.vue'
+
+const props = defineProps<{ standaloneOnly?: boolean }>()
 
 interface PendingNewArticle {
   path: string
@@ -21,7 +22,15 @@ const router = useRouter()
 const { isLoggedIn } = useGitHubAuth()
 const { editRequested, readModeRequest, clearEditRequest } = useEditorEntry()
 
-const storage = createGitHubStorage()
+const storage = shallowRef<EditorStorage>()
+const MarkdownEditor = defineAsyncComponent(async () => {
+  const [{ MarkdownEditor }, { createGitHubStorage }] = await Promise.all([
+    import('@kongjianguan/markdown-editor'),
+    import('../composables/useGitHubStorage'),
+  ])
+  storage.value = createGitHubStorage()
+  return MarkdownEditor
+})
 const editorRef = ref<InstanceType<typeof MarkdownEditor> | null>(null)
 const pendingPath = ref('')
 const pendingTemplate = ref('')
@@ -30,7 +39,7 @@ const mounted = ref(false)
 
 const standalone = computed(() => pendingPath.value !== '')
 // 新建文章通过 ?new=true 触发整页跳转，此时没有编辑请求，需要凭待建文章记录直接进入编辑。
-const isEditing = computed(() => editRequested.value || standalone.value)
+const isEditing = computed(() => standalone.value || (!props.standaloneOnly && editRequested.value))
 
 function readPendingNewArticle(): PendingNewArticle | null {
   if (typeof window === 'undefined') return null
@@ -41,6 +50,7 @@ function readPendingNewArticle(): PendingNewArticle | null {
     if (!raw) return null
     const payload = JSON.parse(raw)
     if (typeof payload.path !== 'string' || typeof payload.template !== 'string') return null
+    if (payload.path === 'docs/index.md') return null
     return {
       path: payload.path,
       template: payload.template,
@@ -70,7 +80,7 @@ function syncPendingArticle(): void {
   pendingCreated.value = pending?.created === true
 }
 
-const editorFilePath = computed(() => pendingPath.value || getFilePathFromPage() || 'docs/index.md')
+const editorFilePath = computed(() => pendingPath.value || getFilePathFromPage())
 
 function handleExit(): void {
   clearEditRequest()
@@ -100,7 +110,8 @@ watch(pageIdentity, (_next, previous) => {
 }, { immediate: true })
 
 watch(readModeRequest, () => {
-  editorRef.value?.requestExit()
+  if (editorRef.value) editorRef.value.requestExit()
+  else handleExit()
 })
 
 let approvedHref: string | null = null
@@ -130,6 +141,7 @@ router.onBeforeRouteChange = routeChangeGuard
 router.onBeforePageLoad = pageLoadGuard
 
 onBeforeUnmount(() => {
+  if (!props.standaloneOnly) clearEditRequest()
   if (router.onBeforeRouteChange === routeChangeGuard) router.onBeforeRouteChange = undefined
   if (router.onBeforePageLoad === pageLoadGuard) router.onBeforePageLoad = undefined
 })
@@ -145,10 +157,10 @@ onMounted(async () => {
   <MarkdownEditor
     v-if="mounted && isEditing"
     ref="editorRef"
-    :storage="storage"
+    class="blog-editor"
+    :storage="storage!"
     :active="isEditing"
     :file-path="editorFilePath"
-    :title="(page.title as string) || ''"
     :is-logged-in="isLoggedIn"
     :expect-new="standalone && !pendingCreated"
     :standalone="standalone"
@@ -162,3 +174,28 @@ onMounted(async () => {
     </template>
   </MarkdownEditor>
 </template>
+
+<style scoped>
+.blog-editor {
+  --mde-toolbar-top: calc(var(--mde-site-nav-height, 0px) + var(--mde-local-nav-height, 0px) + var(--vp-layout-top-height, 0px));
+  isolation: isolate;
+}
+
+@media (min-width: 960px) {
+  .blog-editor {
+    --mde-site-nav-height: var(--vp-nav-height);
+  }
+}
+
+@media (width < 960px) {
+  :global(.Layout:has(.VPLocalNav)) .blog-editor {
+    --mde-local-nav-height: 48px;
+  }
+}
+
+@media (960px <= width < 1280px) {
+  :global(.Layout:has(.VPLocalNav:not(.empty))) .blog-editor {
+    --mde-local-nav-height: 48px;
+  }
+}
+</style>

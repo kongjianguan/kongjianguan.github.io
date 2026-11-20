@@ -3,7 +3,52 @@ import { defineTeekConfig } from "vitepress-theme-teek/config";
 import { SocialLinks } from "./config/SocialLinks"; //导入社交链接配置
 import { Imgs } from "./config/BackgroundImg";
 import { vitepressPluginLegend } from 'vitepress-plugin-legend';
+import { isRedPost } from './theme/redPost';
 const imgBase = process.env.LOCALIMGSRC === '1' ? '/images' : 'https://cdn.jsdmirror.com/gh/kongjianguan/images';
+
+// 访问量取数：直接调用 vercount 接口，超时 8 秒，失败时使用最近一次成功的数据
+// VitePress 会把主题配置里的函数序列化到页面，这个函数不能引用模块作用域的变量
+const requestVercount = async () => {
+  const cacheKey = "vercount-counts";
+  const uvCookie = `vercount_uv_${location.host.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
+  const uvEntry = document.cookie.split("; ").find(item => item.startsWith(`${uvCookie}=`));
+  const isNewUv = uvEntry?.slice(uvCookie.length + 1) !== "1";
+  if (isNewUv) document.cookie = `${uvCookie}=1; path=/; max-age=31536000; samesite=lax`;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+  let counts;
+  try {
+    const response = await fetch("https://events.vercount.one/api/v2/log", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: location.href, isNewUv }),
+      signal: controller.signal,
+    });
+    counts = response.ok ? (await response.json()).data : undefined;
+  } catch {
+    counts = undefined;
+  } finally {
+    clearTimeout(timer);
+  }
+
+  if (counts) {
+    if (typeof counts.site_pv !== "number" || typeof counts.site_uv !== "number" || typeof counts.page_pv !== "number") {
+      throw new Error("vercount 响应缺少计数字段");
+    }
+    localStorage.setItem(cacheKey, JSON.stringify({ ...counts, path: location.pathname }));
+    // 返回字符串，主题用 || 判空时会原样渲染，真实的 0 不会被替换成占位值 9999
+    return { site_pv: String(counts.site_pv), site_uv: String(counts.site_uv), page_pv: String(counts.page_pv) };
+  }
+
+  const cached = JSON.parse(localStorage.getItem(cacheKey) ?? "null");
+  return {
+    site_pv: cached ? String(cached.site_pv) : "—",
+    site_uv: cached ? String(cached.site_uv) : "—",
+    page_pv: cached?.path === location.pathname ? String(cached.page_pv) : "—",
+  };
+};
+
 export const teekConfig = defineTeekConfig({
 
   teekTheme: true,          // 启用 teek 主题
@@ -119,14 +164,14 @@ export const teekConfig = defineTeekConfig({
         avatar:"https://www.duanhen.top/avatar.jpg"
       },
       {
-        name:"🐑の小窝",
+        name:"羊の小窝",
         desc:"蛋骗鸡大神，动手能力极强，常备各种螺丝刀",
         link:"https://sleepingyeoug.top",
         avatar:`${imgBase}/friendAvatar/dzu.jpg`
       },
       {
         name:"秋月華乃",
-        desc:"女装大佬，神秘长发男，精通计算机底层知识、日语，自称全国可飞✈️",
+        desc:"女装大佬，神秘长发男，精通计算机底层知识、日语，自称全国可飞",
         link:"https://www.kanoverse.com/",
         avatar:`${imgBase}/friendAvatar/kanoverse.jpg`
       }
@@ -170,6 +215,7 @@ export const teekConfig = defineTeekConfig({
     // 访问量、访客数统计配置
     statistics: {
       provider: "vercount", // 网站流量统计提供商
+      requestFn: requestVercount, // 自定义取数，失败时回退到缓存
       siteView: true, // 是否开启首页的访问量和排名统计
       pageView: true, // 是否开启文章页的浏览量统计
       tryRequest: false, // 如果请求网站流量统计接口失败，是否重试
@@ -216,6 +262,9 @@ export const teekConfig = defineTeekConfig({
 
   // 内置 Vite 插件配置
   vitePlugins: {
+    mdH1Option: {
+      beforeInject: frontmatter => isRedPost(frontmatter) ? false : undefined,
+    },
     sidebarOption: {
       resolveRule: "filePath", // 按 docs 下的真实文件路径生成侧边栏
       collapsed: true, // 开启侧边栏折叠功能。true 默认折叠，false 默认不折叠

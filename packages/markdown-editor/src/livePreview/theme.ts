@@ -13,7 +13,7 @@ export const editorTheme = EditorView.theme({
     width: '100%',
     fontSize: '16px',
     color: 'var(--mde-text-1)',
-    backgroundColor: 'var(--mde-bg)',
+    backgroundColor: 'transparent',
   },
   '&.cm-focused': {
     outline: 'none',
@@ -26,6 +26,7 @@ export const editorTheme = EditorView.theme({
   },
   '.cm-content': {
     padding: '8px 4px',
+    paddingBottom: '35vh',
     caretColor: 'var(--mde-brand)',
   },
   '.cm-line': {
@@ -104,6 +105,10 @@ export const editorTheme = EditorView.theme({
     paddingTop: '24px',
     paddingBottom: '12px',
     borderTop: '1px solid var(--mde-divider)',
+  },
+  '.cm-line:first-child.mde-h2, .cm-content > .mde-h2:first-child': {
+    borderTop: 'none',
+    paddingTop: '8px',
   },
   '.mde-h3': {
     paddingTop: '16px',

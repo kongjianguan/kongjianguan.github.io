@@ -1,6 +1,68 @@
 import { expect, test } from '@playwright/test'
 import { assembleMarkdown, parseFrontmatter } from '../packages/markdown-editor/src/frontmatter'
 
+test('本地编辑模式按操作加载组件，退出登录后隐藏入口', async ({ page }, testInfo) => {
+  const requests: string[] = []
+  page.on('request', request => requests.push(request.url()))
+  await page.goto('/')
+  await expect(page.getByRole('button', { name: '新建文章', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: '编辑文章', exact: true })).toHaveCount(0)
+  await expect(page.locator('.cm-content')).toHaveCount(0)
+  expect(requests.some(url => url.includes('/MarkdownEditor.vue'))).toBe(false)
+  expect(requests.some(url => url.includes('/NewArticleDialog.vue'))).toBe(false)
+
+  await page.getByRole('button', { name: '新建文章', exact: true }).click()
+  await expect(page.getByPlaceholder('添加标题（可选）')).toBeVisible()
+  expect(requests.some(url => url.includes('/NewArticleDialog.vue'))).toBe(true)
+  const composeDialog = page.getByRole('dialog', { name: '新建文章' })
+  for (const name of ['图文动态', '专栏文章']) {
+    const button = composeDialog.getByRole('button', { name, exact: true })
+    await expect(button).toHaveCSS('align-items', 'center')
+    await expect(button).toHaveCSS('gap', '6px')
+    const icon = button.locator('svg[aria-hidden="true"]')
+    await expect(icon).toBeVisible()
+    await expect(icon).toHaveAttribute('stroke-width', '1.8')
+  }
+  const publish = composeDialog.getByRole('button', { name: '立即发布', exact: true })
+  await expect(publish).toBeDisabled()
+  await expect(publish.locator('svg')).toHaveCount(0)
+  const composeScreenshot = testInfo.outputPath('compose-icons.png')
+  await composeDialog.screenshot({ path: composeScreenshot, animations: 'disabled' })
+  await testInfo.attach('新建文章弹窗图标', { path: composeScreenshot, contentType: 'image/png' })
+  await page.getByRole('button', { name: '取消', exact: true }).click()
+  await page.goto('/Life/无职转生')
+  await page.getByRole('button', { name: '编辑文章', exact: true }).click()
+  await expect(page.locator('.cm-content')).toBeVisible()
+  expect(requests.some(url => url.includes('/MarkdownEditor.vue'))).toBe(true)
+  await page.getByRole('button', { name: '阅读模式', exact: true }).click()
+  await expect(page.locator('.cm-content')).toHaveCount(0)
+  await page.getByRole('button', { name: /local-dev/ }).click()
+  await page.getByRole('button', { name: '退出登录', exact: true }).click()
+  await expect(page.getByRole('button', { name: '编辑文章', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: '新建文章', exact: true })).toHaveCount(0)
+  await testInfo.attach('编辑组件请求', {
+    body: JSON.stringify(requests, null, 2), contentType: 'application/json',
+  })
+})
+
+test('新建专栏文章会自动生成文章属性并打开编辑器', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: '新建文章', exact: true }).click()
+  await page.getByRole('button', { name: '专栏文章', exact: true }).click()
+  await page.getByRole('textbox', { name: '标题', exact: true }).fill('新专栏文章')
+  await page.getByRole('combobox', { name: '专栏', exact: true }).selectOption({ label: '软件' })
+  await page.getByRole('button', { name: '开始写作' }).click()
+  await expect(page).toHaveURL(/\?new=true$/)
+  await expect(page.locator('.cm-content')).toBeVisible({ timeout: 15000 })
+  await expect(page.getByRole('button', { name: '文章属性' })).toHaveAttribute('aria-expanded', 'false')
+
+  const pending = await page.evaluate(() => JSON.parse(sessionStorage.getItem('pending_new_article')!))
+  expect(pending.path).toMatch(/^docs\/Software\/新专栏文章-[a-f0-9]{8}\.md$/)
+  expect(parseFrontmatter(pending.template).frontmatter).toMatchObject({
+    title: '新专栏文章', categories: ['软件'], tags: [], date: expect.any(String),
+  })
+})
+
 test('本机草稿在文章路由离开后仍可恢复', async ({ page }) => {
   await page.goto('/programming/树的重心/')
   let confirmNavigation = false
@@ -40,24 +102,86 @@ test('本机草稿在文章路由离开后仍可恢复', async ({ page }) => {
   await expect(restoredEditor).toContainText('E2E 草稿恢复标记')
 })
 
-test('分类标签与标题属性可保存并恢复', async ({ page }) => {
+test('无边框写作画布与分类标签、标题属性的保存和恢复', async ({ page }, testInfo) => {
   page.on('dialog', dialog => dialog.accept())
   await page.goto('/programming/树的重心/')
   await page.getByRole('button', { name: '编辑文章' }).click()
+
+  const canvas = page.locator('.mde-editor-body')
+  const toolbar = page.locator('.editor-toolbar')
+  const editor = page.locator('.cm-content')
+  const inlineTitle = page.getByRole('textbox', { name: '文章标题', exact: true })
+  const properties = page.getByRole('button', { name: '文章属性' })
+  const firstHeading = editor.locator('.cm-line').first()
+  await expect(inlineTitle).toHaveValue('树的重心')
+  await expect(canvas).toHaveCSS('border-top-width', '0px')
+  await expect(canvas).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+  await expect(inlineTitle).toHaveCSS('font-size', '38px')
+  await expect(canvas.locator('.mde-doc-date')).toHaveText('2026-05-16')
+  await expect(canvas.locator('.mde-doc-category')).toHaveText('编程')
+  await expect(canvas.locator('.mde-doc-tag')).toHaveText(['#ACM', '#算法'])
+  await expect(properties).toHaveAttribute('aria-expanded', 'false')
+  await expect(firstHeading).toHaveClass(/mde-h2/)
+  await expect(firstHeading).toHaveCSS('border-top-width', '0px')
+  await expect(editor.locator('.mde-h2').nth(1)).toHaveCSS('border-top-width', '1px')
+  await expect.poll(() => editor.evaluate(element =>
+    parseFloat(getComputedStyle(element).paddingBottom) / window.innerHeight,
+  )).toBeCloseTo(0.35)
+
+  for (const width of [1280, 1024, 390]) {
+    await page.setViewportSize({ width, height: 820 })
+    await editor.press('ArrowDown')
+    await inlineTitle.focus()
+    await page.evaluate(() => window.scrollTo(0, 0))
+    await toolbar.evaluate((element) => {
+      const top = parseFloat(getComputedStyle(element).top)
+      window.scrollBy(0, element.getBoundingClientRect().top - top)
+    })
+    const screenshot = testInfo.outputPath(`writing-canvas-${width}.png`)
+    await page.screenshot({ path: screenshot, animations: 'disabled' })
+    await testInfo.attach(`写作画布 ${width}px`, { path: screenshot, contentType: 'image/png' })
+    await page.evaluate(() => window.scrollBy(0, 360))
+    await expect.poll(() => toolbar.evaluate(element =>
+      element.getBoundingClientRect().top - parseFloat(getComputedStyle(element).top),
+    )).toBeCloseTo(0)
+    const siteNavigation = page.locator(width < 1280 ? '.VPLocalNav' : '.VPNav')
+    const navigationBox = await siteNavigation.boundingBox()
+    const toolbarBox = await toolbar.boundingBox()
+    expect(toolbarBox!.y).toBeGreaterThanOrEqual(navigationBox!.y + navigationBox!.height - 1)
+  }
+
+  const singleLineHeight = await inlineTitle.evaluate(element => element.clientHeight)
+  const longTitle = '树的重心与路径长度的关系'.repeat(5)
+  await inlineTitle.fill(longTitle)
+  await expect.poll(() => inlineTitle.evaluate(element => element.clientHeight)).toBeGreaterThan(singleLineHeight)
+  await expect(page.getByRole('button', { name: '保存草稿' })).toBeEnabled()
+  await inlineTitle.press('Enter')
+  await expect(editor).toBeFocused()
+  await expect(inlineTitle).toHaveValue(longTitle)
+
+  await page.setViewportSize({ width: 1280, height: 820 })
+  await properties.click()
   const tags = page.locator('.fm-row').filter({ hasText: '标签' }).locator('input')
   await tags.fill('one, two,')
   await expect(tags).toHaveValue('one, two,')
   await tags.press('Tab')
   await expect(tags).toHaveValue('one, two')
+  await expect(canvas.locator('.mde-doc-tag')).toHaveText(['#one', '#two'])
 
   const title = page.locator('.fm-row').filter({ hasText: '标题' }).locator('input')
-  await title.fill('E2E 属性恢复标题')
+  await expect(title).toHaveValue(longTitle)
+  await title.fill('E2E 属性面板标题')
+  await expect(inlineTitle).toHaveValue('E2E 属性面板标题')
+  await inlineTitle.fill('E2E 属性恢复标题')
+  await expect(inlineTitle).toHaveValue('E2E 属性恢复标题')
   await page.getByRole('button', { name: '保存草稿' }).click()
   await expect(page.getByText('本机草稿已保存')).toBeVisible()
   await page.getByRole('button', { name: '退出' }).click()
   await expect(page.getByRole('button', { name: '编辑文章' })).toBeVisible()
   await expect(page.locator('.cm-content')).toHaveCount(0)
   await page.getByRole('button', { name: '编辑文章' }).click()
+  await expect(inlineTitle).toHaveValue('E2E 属性恢复标题')
+  await page.getByRole('button', { name: '文章属性' }).click()
   await expect(page.locator('.fm-row').filter({ hasText: '标题' }).locator('input'))
     .toHaveValue('E2E 属性恢复标题')
 })
@@ -66,6 +190,7 @@ test('真实损坏的草稿YAML可修复并保留正文', async ({ page }) => {
   page.on('dialog', dialog => dialog.accept())
   await page.goto('/programming/树的重心/')
   await page.getByRole('button', { name: '编辑文章' }).click()
+  await page.getByRole('button', { name: '文章属性' }).click()
 
   const title = page.locator('.fm-row').filter({ hasText: '标题' }).locator('input')
   await expect(title).toHaveValue('树的重心')
@@ -135,6 +260,7 @@ test('真实损坏的草稿YAML可修复并保留正文', async ({ page }) => {
   const applyRepair = page.getByRole('button', { name: '应用文章属性修复' })
   await expect(applyRepair).toBeEnabled()
   await applyRepair.click()
+  await page.getByRole('button', { name: '文章属性' }).click()
 
   await expect(page.locator('.fm-row').filter({ hasText: '标题' }).locator('input'))
     .toHaveValue('E2E YAML修复标题')
@@ -147,6 +273,7 @@ test('真实损坏的草稿YAML可修复并保留正文', async ({ page }) => {
   await page.getByRole('button', { name: '退出' }).click()
   await expect(page.getByRole('button', { name: '编辑文章' })).toBeVisible()
   await page.getByRole('button', { name: '编辑文章' }).click()
+  await page.getByRole('button', { name: '文章属性' }).click()
   await expect(page.locator('.fm-row').filter({ hasText: '标题' }).locator('input'))
     .toHaveValue('E2E YAML修复标题')
   const restoredEditor = page.locator('.cm-content')

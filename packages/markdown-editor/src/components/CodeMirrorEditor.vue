@@ -201,8 +201,4 @@ defineExpose({
 .mde-live-editor {
   width: 100%;
 }
-
-.mde-live-editor :deep(.cm-editor) {
-  background: var(--mde-bg);
-}
 </style>

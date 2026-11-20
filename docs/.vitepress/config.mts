@@ -1,12 +1,22 @@
 // 主配置文件
-import { defineConfig } from 'vitepress'
+import { defineConfig, loadEnv } from 'vitepress'
 import { teekConfig } from "./teekConfig"
+import { getPostPhotos, isRedPost, resolvePostImage } from './theme/redPost'
 import { HeadData } from "./config/Head"
 import type { HeadConfig } from "vitepress"; // 在文件顶部添加类型导入
 import { chineseSearchOptimize, pagefindPlugin } from 'vitepress-plugin-pagefind'
 import { createRewrites } from "vitepress-theme-teek/config";
 
-export default defineConfig({
+const photoImageBase = process.env.LOCALIMGSRC === '1'
+  ? '/images'
+  : 'https://cdn.jsdmirror.com/gh/kongjianguan/kongjianguan.github.io@main/docs/public/images'
+
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '')
+  const localAuth = process.env.LOCAL_AUTH || process.env.VITE_LOCAL_AUTH || process.env.VITE_LOCALEDIT
+    || env.LOCAL_AUTH || env.VITE_LOCAL_AUTH || env.VITE_LOCALEDIT || ''
+
+  return {
   
   title: "KONGJIANGUAN",
   description: "え？雲☁😄、タッタッタッタッタ、原神がめちゃくちゃやりたい😨、クラウド原神😙、ドンドンドンドン😊、華やかな世界を見よう👍🎊😆、クラウド原神😄、うううう、原神がやりたい😭😭😭クラウド原神、友達が待ってるよ😊😃😆、一緒に原神をやろう、クラウド原神！あああああ😙、原神がやりたい😙クラウド原神、ははははは🤣🤣🤣、一緒に原神をやろう、クラウド原神、すごくすごく、🤩原神がやりたい😋ウェブクラウド版、低消費電力で画質も劣化なし😌、WiFiもLANケーブルも🥰、どっちでも60フレーム😍、さあさあ👏、クラウド原神に入ろう",
@@ -17,6 +27,12 @@ export default defineConfig({
   lang: "zh-CN",
   lastUpdated: true,
   rewrites: createRewrites({ srcDir: "docs" }),
+
+  transformPageData({ frontmatter }) {
+    if (!isRedPost(frontmatter)) return
+    frontmatter.layout = 'red'
+    frontmatter.sidebar = false
+  },
 
   // https://vitepress.dev/zh/guide/sitemap-generation
   sitemap: {
@@ -47,7 +63,33 @@ export default defineConfig({
 
   vite: {
     envDir: process.cwd(),
+    define: {
+      'import.meta.env.VITE_LOCAL_AUTH': JSON.stringify(localAuth),
+    },
+    optimizeDeps: {
+      // 预扫描按需加载的编辑器，避免开发服务器在首次打开时重新加载页面。
+      entries: [
+        '.vitepress/theme/index.ts',
+        '.vitepress/theme/components/NewArticleDialog.vue',
+        '../packages/markdown-editor/src/components/MarkdownEditor.vue',
+        '../packages/markdown-editor/src/components/CodeMirrorEditor.vue',
+      ],
+    },
     plugins: [
+      {
+        name: 'red-post-covers',
+        configResolved(config) {
+          // Teek 在 config 阶段汇总文章，首页和分类列表共用这些文章对象。
+          const { base, themeConfig } = config.vitepress.site
+          for (const { frontmatter } of themeConfig.posts.allPosts) {
+            if (!isRedPost(frontmatter)) continue
+            const photos = getPostPhotos(frontmatter.photos)
+            const cover = frontmatter.coverImg || frontmatter.cover || photos[0]
+            if (typeof cover === 'string') frontmatter.coverImg = resolvePostImage(cover, photoImageBase, base)
+            if (photos.length > 1) frontmatter.titleTag ??= `${photos.length}P`
+          }
+        },
+      },
       // 本地搜索
       pagefindPlugin({
         btnPlaceholder: '搜索',
@@ -60,6 +102,7 @@ export default defineConfig({
   },
 
   themeConfig: {
+    photoImageBase,
 
     // https://vitepress.dev/reference/default-theme-config
     // nav: [
@@ -138,5 +181,6 @@ export default defineConfig({
     //     indexName: 'chunge16vitepress' // 你的indexName
     //   }
     // },
+  }
   }
 })

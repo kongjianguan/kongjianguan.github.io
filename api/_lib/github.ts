@@ -62,7 +62,7 @@ function encodeBase64Url(bytes: Uint8Array): string {
     .replace(/=+$/, '')
 }
 
-function decodeBase64Url(value: string): Uint8Array | null {
+function decodeBase64Url(value: string): Uint8Array<ArrayBuffer> | null {
   try {
     const normalized = value.replace(/-/g, '+').replace(/_/g, '/')
     const padding = '='.repeat((4 - (normalized.length % 4)) % 4)
@@ -164,13 +164,12 @@ export function validatePath(path: string): string {
     /^package(-lock)?\.json$/, /^pnpm-lock/, /^vercel\.json$/,
     /^\.env/, /^docs\/\.vitepress\//,
   ]
-  if (dangerous.some(re => re.test(path))) {
+  if (path === 'docs/index.md' || dangerous.some(re => re.test(path))) {
     throw new Error('非法路径：受保护位置')
   }
 
   const isArticle = path.endsWith('.md') && (
     ARTICLE_DIRS.some(dir => path.startsWith(`docs/${dir}/`)) ||
-    path === 'docs/index.md' ||
     /^docs\/[^/]+\.md$/.test(path)
   )
   const isImage = path.startsWith('docs/public/images/') &&
@@ -340,7 +339,9 @@ export async function githubRequest(
 ): Promise<Response> {
   const safePath = validatePath(path)
   const encodedPath = safePath.split('/').map(segment => encodeURIComponent(segment)).join('/')
-  return fetch(`${GITHUB_API}/repos/${REPO_OWNER}/${REPO_NAME}/contents/${encodedPath}`, {
+  const url = new URL(`${GITHUB_API}/repos/${REPO_OWNER}/${REPO_NAME}/contents/${encodedPath}`)
+  if (init.method === 'GET') url.searchParams.set('ref', BRANCH)
+  return fetch(url, {
     ...init,
     headers: {
       ...githubHeaders(token),
