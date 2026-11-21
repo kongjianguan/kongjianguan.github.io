@@ -443,7 +443,7 @@ onBeforeUnmount(resetZoom)
 
 @media (min-width: 960px) {
   .photo-gallery {
-    align-self: start;
+    align-self: center;
     justify-self: center;
     position: sticky;
     top: calc(var(--vp-nav-height) + 24px);
