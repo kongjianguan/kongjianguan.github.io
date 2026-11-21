@@ -57,10 +57,10 @@ const tags = computed(() => [frontmatter.value.tags ?? []].flat().filter(Boolean
   box-shadow: 0 12px 48px rgb(78 66 95 / 10%);
   overflow: clip;
 }
-.red-post-copy { min-width: 0; padding: clamp(18px, 4vw, 46px); overflow-wrap: anywhere; }
+.red-post-copy { min-width: 0; padding: clamp(20px, 2.5vw, 36px); overflow-wrap: anywhere; }
 .red-post-byline { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; font-size: 13px; color: var(--vp-c-text-2); }
 .red-post-author { font-weight: 650; color: var(--vp-c-text-1); }
-.red-post h1 { margin: 12px 0 16px; font-weight: 750; font-size: clamp(25px, 3vw, 39px); line-height: 1.22; text-wrap: balance; }
+.red-post h1 { margin: 12px 0 16px; font-weight: 750; font-size: clamp(22px, 2.2vw, 32px); line-height: 1.28; text-wrap: pretty; word-break: normal; overflow-wrap: break-word; }
 .red-post-body :deep(> div > :first-child) { margin-top: 0; }
 .red-post-tags { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0 0; }
 .red-post-tags li { border-radius: 999px; padding: 3px 11px; background: var(--vp-c-brand-soft); color: var(--vp-c-brand-1); font-size: 13px; }
@@ -72,7 +72,7 @@ const tags = computed(() => [frontmatter.value.tags ?? []].flat().filter(Boolean
     margin-top: 28px;
     width: min(1180px, calc(100% - 64px));
     display: grid;
-    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 }
 </style>
