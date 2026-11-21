@@ -1,0 +1,140 @@
+// 优化首页文章列表卡片与窄屏布局
+.tk-post .tk-post-item-list {
+  border: 1px solid var(--vp-c-divider, rgba(255, 255, 255, 0.08));
+  border-radius: 12px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+
+  &:hover {
+    border-color: var(--vp-c-brand-1);
+  }
+
+  .tk-article-info {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 12px;
+    font-size: 13px;
+  }
+
+  .tk-article-info__item {
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap !important;
+    margin-right: 0 !important;
+  }
+
+  .tk-article-info__icon {
+    margin-right: 4px;
+    vertical-align: middle;
+    opacity: 0.75;
+  }
+
+  // Teek 使用 .or 标记分类和标签链接。
+  .tk-article-info__item:has(> a.or) {
+    flex-wrap: wrap;
+    gap: 4px;
+
+    .tk-article-info__icon {
+      margin-right: 0;
+    }
+  }
+
+  .tk-article-info__item > a.or {
+    background: var(--vp-c-bg-soft, rgba(125, 125, 125, 0.12));
+    color: var(--vp-c-brand-1);
+    padding: 1px 7px;
+    border-radius: 4px;
+    font-size: 12px;
+    line-height: 1.4;
+    transition: background 0.2s, color 0.2s;
+
+    &::after {
+      content: none;
+    }
+
+    &:hover {
+      background: var(--vp-c-brand-soft);
+      color: var(--vp-c-brand-2);
+    }
+  }
+
+  .more {
+    display: none !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .tk-post .tk-post-item-list {
+    margin-bottom: 12px;
+
+    .tk-post-item-list__left {
+      min-width: 0;
+      padding: 14px 16px;
+    }
+
+    .tk-post-item-list__left__title {
+      padding-inline-start: 11px;
+      font-size: 17px;
+      line-height: 1.4;
+      white-space: normal;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      overflow: hidden;
+      overflow-wrap: anywhere;
+
+      // 扩大标题链接的点击区域，分类和标签保留各自的链接。
+      &::after {
+        position: absolute;
+        z-index: 1;
+        inset: 0;
+        content: "";
+      }
+    }
+
+    .tk-post-item-list__left__title .tk-article-title::before {
+      position: static;
+      width: 3px;
+      height: 14px;
+      margin-inline: -11px 8px;
+      border-radius: 2px;
+      vertical-align: -1px;
+    }
+
+    .tk-post-item-list__left__excerpt {
+      margin: 6px 0 8px;
+
+      &.top {
+        margin-bottom: 6px;
+      }
+
+      .excerpt {
+        font-size: 13px;
+        line-height: 1.55;
+        color: var(--vp-c-text-2);
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+        overflow: hidden;
+      }
+
+    }
+
+    .tk-article-info {
+      gap: 6px 10px;
+    }
+
+    .tk-article-info__item[aria-label="作者"],
+    .tk-article-info__item[aria-label="Author"],
+    .tk-article-info__item:has(a[aria-label="kongjianguan"]) {
+      display: none !important;
+    }
+
+    .tk-article-info__item > a.or {
+      position: relative;
+      z-index: 2;
+    }
+  }
+}

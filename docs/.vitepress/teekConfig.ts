@@ -84,7 +84,7 @@ export const teekConfig = defineTeekConfig({
   post: {
     postStyle: "list", // 文章列表风格
     excerptPosition: "top", // 文章摘要位置
-    showMore: true, // 是否显示更多按钮
+    showMore: false, // 是否显示更多按钮
     moreLabel: "阅读全文 >", // 更多按钮文字
     emptyLabel: "暂无文章", // 文章列表为空时的标签
     coverImgMode: "full", // 文章封面图模式
