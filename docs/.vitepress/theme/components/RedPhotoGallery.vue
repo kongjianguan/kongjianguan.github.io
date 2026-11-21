@@ -449,19 +449,20 @@ onBeforeUnmount(resetZoom)
 
 @media (min-width: 960px) {
   .photo-gallery {
+    --photo-available-height: calc(100dvh - var(--red-gallery-nav-height, var(--vp-nav-height)) - 48px);
     align-self: stretch;
     height: 100%;
     min-height: 0;
   }
   .photo-sticky-wrap {
     position: sticky;
-    top: calc(var(--vp-nav-height) + 24px);
-    height: calc(100dvh - var(--vp-nav-height) - 48px);
+    top: calc(var(--red-gallery-nav-height, var(--vp-nav-height)) + 24px);
+    height: var(--photo-available-height);
     display: flex;
     align-items: center;
     justify-content: center;
   }
-  .photo-stage { width: min(100%, calc((100dvh - var(--vp-nav-height) - 48px) * var(--frame-ratio))); }
+  .photo-stage { width: min(100%, calc(var(--photo-available-height) * var(--frame-ratio))); }
   .photo-arrow { display: block; }
 }
 </style>

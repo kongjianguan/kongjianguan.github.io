@@ -38,6 +38,12 @@ const emit = defineEmits<{
   'content-change': [value: string]
 }>()
 
+defineSlots<{
+  login?: () => unknown
+  media?: (props: { frontmatter: Record<string, unknown>; title: string }) => unknown
+  author?: (props: { frontmatter: Record<string, unknown> }) => unknown
+}>()
+
 const notify = (message: string) => {
   if (props.notify) props.notify(message)
   else if (typeof window !== 'undefined') window.alert(message)
@@ -290,17 +296,27 @@ watch(content, () => {
 
 onMounted(() => {
   window.addEventListener('beforeunload', handleBeforeUnload)
-  window.addEventListener('resize', resizeInlineTitle)
 })
 
 watch([titleInputRef, inlineTitle], resizeInlineTitle, { flush: 'post' })
+
+watch(titleInputRef, (input, _previous, onCleanup) => {
+  if (!input) return
+  let width = input.clientWidth
+  const observer = new ResizeObserver(() => {
+    if (input.clientWidth === width) return
+    width = input.clientWidth
+    resizeInlineTitle()
+  })
+  observer.observe(input)
+  onCleanup(() => observer.disconnect())
+}, { flush: 'post' })
 
 onBeforeUnmount(() => {
   clearTimeout(draftSaveTimer)
   if (isEditing.value && contentLoaded.value) saveEditorDraft(false)
   finishEditing()
   window.removeEventListener('beforeunload', handleBeforeUnload)
-  window.removeEventListener('resize', resizeInlineTitle)
   images.release()
 })
 
@@ -317,7 +333,7 @@ defineExpose({
 </script>
 
 <template>
-  <div v-if="isEditing" class="editor-controls">
+  <div v-if="isEditing" class="editor-controls" :class="{ 'mde-media-editor': $slots.media }">
     <EditorToolbar
       :file-path="filePath"
       :is-dirty="isDirty"
@@ -357,53 +373,68 @@ defineExpose({
       @click="repairingFrontmatter = false"
     >应用文章属性修复</button>
 
-    <div v-if="contentLoaded && !repairingFrontmatter" class="mde-editor-body">
-      <div class="mde-doc-header">
-        <textarea
-          ref="titleInputRef"
-          class="mde-inline-title"
-          :value="inlineTitle"
-          aria-label="文章标题"
-          placeholder="无标题文章"
-          rows="1"
-          @input="handleInlineTitleInput"
-          @keydown.enter="focusBodyEditor"
-        />
-        <div class="mde-doc-meta">
-          <time v-if="documentDate" class="mde-doc-date" :datetime="documentDate">{{ documentDate }}</time>
-          <span v-if="primaryCategory" class="mde-doc-category">{{ primaryCategory }}</span>
-          <span v-for="tag in currentTags" :key="tag" class="mde-doc-tag">#{{ tag }}</span>
-          <button
-            v-if="isLoggedIn"
-            type="button"
-            class="mde-properties-btn"
-            :aria-expanded="!fmCollapsed"
-            @click="fmCollapsed = !fmCollapsed"
-          >
-            <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-              <path d="M4 6h12M4 10h12M4 14h8" />
-            </svg>
-            {{ labels?.frontmatter?.toggle ?? '文章属性' }}
-          </button>
-        </div>
-        <FrontmatterPanel
-          v-if="isLoggedIn && !fmCollapsed"
-          :frontmatter="frontmatter"
-          :labels="labels?.frontmatter"
-          :placeholders="labels?.placeholders"
-          @update:frontmatter="handleFrontmatterUpdate"
-        />
+    <div v-if="contentLoaded && !repairingFrontmatter" class="mde-editor-body" :class="{ 'with-media': $slots.media }">
+      <div v-if="$slots.media" class="mde-media">
+        <slot name="media" :frontmatter="frontmatter" :title="inlineTitle" />
       </div>
-      <CodeMirrorEditor
-        ref="bodyEditorRef"
-        :model-value="bodyContent"
-        :initial-selection="initialSelection"
-        :stage-image="images.stage"
-        :on-image-error="notify"
-        :on-save="() => saveEditorDraft()"
-        :placeholder-text="labels?.placeholder || '开始写作…'"
-        @update:model-value="updateBody"
-      />
+      <div class="mde-doc-copy">
+        <div class="mde-doc-header">
+          <textarea
+            ref="titleInputRef"
+            class="mde-inline-title"
+            :value="inlineTitle"
+            aria-label="文章标题"
+            placeholder="无标题文章"
+            rows="1"
+            @input="handleInlineTitleInput"
+            @keydown.enter="focusBodyEditor"
+          />
+          <div class="mde-doc-meta">
+            <span v-if="$slots.media && $slots.author" class="mde-doc-author">
+              <slot name="author" :frontmatter="frontmatter" />
+            </span>
+            <time v-if="documentDate" class="mde-doc-date" :datetime="documentDate">{{ documentDate }}</time>
+            <template v-if="!$slots.media">
+              <span v-if="primaryCategory" class="mde-doc-category">{{ primaryCategory }}</span>
+              <span v-for="tag in currentTags" :key="tag" class="mde-doc-tag">#{{ tag }}</span>
+            </template>
+            <button
+              v-if="isLoggedIn"
+              type="button"
+              class="mde-properties-btn"
+              :aria-expanded="!fmCollapsed"
+              @click="fmCollapsed = !fmCollapsed"
+            >
+              <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                <path d="M4 6h12M4 10h12M4 14h8" />
+              </svg>
+              {{ labels?.frontmatter?.toggle ?? '文章属性' }}
+            </button>
+          </div>
+          <FrontmatterPanel
+            v-if="isLoggedIn && !fmCollapsed"
+            :frontmatter="frontmatter"
+            :show-photos="Boolean($slots.media)"
+            :labels="labels?.frontmatter"
+            :placeholders="labels?.placeholders"
+            @update:frontmatter="handleFrontmatterUpdate"
+          />
+        </div>
+        <CodeMirrorEditor
+          ref="bodyEditorRef"
+          :model-value="bodyContent"
+          :initial-selection="initialSelection"
+          :auto-focus="!$slots.media"
+          :stage-image="images.stage"
+          :on-image-error="notify"
+          :on-save="() => saveEditorDraft()"
+          :placeholder-text="labels?.placeholder || '开始写作…'"
+          @update:model-value="updateBody"
+        />
+        <ul v-if="$slots.media && currentTags.length" class="mde-doc-tags" aria-label="标签">
+          <li v-for="tag in currentTags" :key="tag">#{{ tag }}</li>
+        </ul>
+      </div>
     </div>
 
     <CommitDialog
@@ -420,6 +451,128 @@ defineExpose({
 </template>
 
 <style scoped>
+.editor-controls.mde-media-editor {
+  max-width: none;
+  padding: 0;
+}
+
+.mde-media-editor > :not(.mde-editor-body) {
+  width: min(680px, calc(100% - 24px));
+  margin-inline: auto;
+}
+
+.mde-editor-body.with-media {
+  width: min(680px, calc(100% - 24px));
+  margin: 20px auto 48px;
+  border: 1px solid var(--mde-divider);
+  border-radius: 16px;
+  background: var(--mde-bg);
+  box-shadow: 0 12px 48px rgb(78 66 95 / 10%);
+  overflow: clip;
+}
+
+.mde-media {
+  min-width: 0;
+}
+
+.mde-media:empty,
+.mde-doc-author:empty {
+  display: none;
+}
+
+.with-media .mde-doc-copy {
+  min-width: 0;
+  padding: clamp(20px, 2.5vw, 36px);
+  overflow-wrap: anywhere;
+}
+
+.with-media .mde-doc-header {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+}
+
+.with-media .mde-doc-meta {
+  order: -1;
+  gap: 0 14px;
+  margin: 0;
+  line-height: 24px;
+}
+
+.mde-doc-author {
+  color: var(--mde-text-1);
+  font-weight: 650;
+}
+
+.with-media .mde-properties-btn {
+  min-height: 24px;
+  padding-block: 0;
+}
+
+.with-media .mde-inline-title {
+  margin: 12px 0 16px;
+  font-size: clamp(22px, 2.2vw, 32px);
+  line-height: 1.28;
+  text-wrap: pretty;
+  word-break: normal;
+  overflow-wrap: break-word;
+}
+
+.with-media .mde-live-editor :deep(.cm-scroller) {
+  padding: 0;
+  line-height: 28px;
+}
+
+.with-media .mde-live-editor :deep(.cm-content) {
+  padding: 0;
+}
+
+.with-media .mde-live-editor :deep(.cm-line:not(.mde-quote)) {
+  padding-inline: 0;
+}
+
+.with-media .mde-live-editor :deep(.mde-paragraph-gap) {
+  line-height: 16px;
+}
+
+.with-media .mde-live-editor :deep(.cm-line:is(:first-child, :last-child):not(:only-child):has(> br:only-child)) {
+  line-height: 1px;
+}
+
+.mde-doc-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mde-doc-tags li {
+  padding: 3px 11px;
+  border-radius: 999px;
+  background: var(--mde-brand-soft);
+  color: var(--mde-brand);
+  font-size: 13px;
+}
+
+@media (min-width: 960px) {
+  .mde-media-editor > :not(.mde-editor-body),
+  .mde-editor-body.with-media:has(> .mde-media > *) {
+    width: min(1180px, calc(100% - 64px));
+  }
+
+  .mde-editor-body.with-media {
+    margin-top: 28px;
+  }
+
+  .mde-editor-body.with-media:has(> .mde-media > *) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
 .mde-invalid-frontmatter {
   width: 100%;
   min-height: 12rem;

@@ -2,18 +2,16 @@
 import { computed } from 'vue'
 import { useData, useRoute } from 'vitepress'
 import { TkCommentGiscus } from 'vitepress-theme-teek'
+import ArticleContent from './ArticleContent.vue'
 import RedPhotoGallery from './RedPhotoGallery.vue'
-import { getPostPhotos, resolvePostImage } from '../redPost'
+import { getPostAuthor, getPostPhotos, resolvePostImage } from '../redPost'
 
 const { frontmatter, page, site, theme } = useData()
 const route = useRoute()
 const photos = computed(() => getPostPhotos(frontmatter.value.photos)
   .map(photo => resolvePostImage(photo, theme.value.photoImageBase, site.value.base)))
 const title = computed(() => frontmatter.value.title || page.value.title)
-const author = computed(() => {
-  const value = frontmatter.value.author || theme.value.author
-  return typeof value === 'string' ? value : value?.name
-})
+const author = computed(() => getPostAuthor(frontmatter.value.author || theme.value.author))
 const date = computed(() => {
   const value = frontmatter.value.date
   return String(value instanceof Date ? value.toISOString() : value ?? '').slice(0, 10)
@@ -22,6 +20,7 @@ const tags = computed(() => [frontmatter.value.tags ?? []].flat().filter(Boolean
 </script>
 
 <template>
+  <ArticleContent class="red-post-editor" />
   <main class="red-post" :class="{ 'with-photos': photos.length }" data-pagefind-body>
     <RedPhotoGallery v-if="photos.length" :key="route.path" :photos="photos" :title="title" />
 
@@ -48,6 +47,8 @@ const tags = computed(() => [frontmatter.value.tags ?? []].flat().filter(Boolean
 </template>
 
 <style scoped>
+.red-post-editor + main.red-post { display: none; }
+
 .red-post {
   margin: 20px auto 48px;
   width: min(680px, calc(100% - 24px));

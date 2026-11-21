@@ -4,7 +4,10 @@ import { useData, useRoute, useRouter } from 'vitepress'
 import type { EditorStorage } from '@kongjianguan/markdown-editor'
 import { useGitHubAuth } from '../composables/useGitHubAuth'
 import { useEditorEntry } from '../composables/useEditorEntry'
+import { getPostAuthor, getPostPhotos, isRedPost, resolvePostImage } from '../redPost'
 import LoginButton from './LoginButton.vue'
+
+const RedPhotoGallery = defineAsyncComponent(() => import('./RedPhotoGallery.vue'))
 
 const props = defineProps<{ standaloneOnly?: boolean }>()
 
@@ -16,7 +19,7 @@ interface PendingNewArticle {
 
 const NEW_ARTICLE_KEY = 'pending_new_article'
 
-const { page } = useData()
+const { frontmatter, page, site, theme } = useData()
 const route = useRoute()
 const router = useRouter()
 const { isLoggedIn } = useGitHubAuth()
@@ -38,6 +41,7 @@ const pendingCreated = ref(false)
 const mounted = ref(false)
 
 const standalone = computed(() => pendingPath.value !== '')
+const isPhotoPage = computed(() => isRedPost(frontmatter.value))
 // 新建文章通过 ?new=true 触发整页跳转，此时没有编辑请求，需要凭待建文章记录直接进入编辑。
 const isEditing = computed(() => standalone.value || (!props.standaloneOnly && editRequested.value))
 
@@ -81,6 +85,10 @@ function syncPendingArticle(): void {
 }
 
 const editorFilePath = computed(() => pendingPath.value || getFilePathFromPage())
+
+function resolvePhotos(photos: unknown): string[] {
+  return getPostPhotos(photos).map(photo => resolvePostImage(photo, theme.value.photoImageBase, site.value.base))
+}
 
 function handleExit(): void {
   clearEditRequest()
@@ -180,6 +188,17 @@ onMounted(async () => {
     <template #login>
       <LoginButton />
     </template>
+    <template v-if="isPhotoPage" #media="{ frontmatter: draft, title: inlineTitle }">
+      <RedPhotoGallery
+        v-if="getPostPhotos(draft.photos).length"
+        :key="JSON.stringify(draft.photos)"
+        :photos="resolvePhotos(draft.photos)"
+        :title="inlineTitle"
+      />
+    </template>
+    <template v-if="isPhotoPage" #author="{ frontmatter: draft }">
+      {{ getPostAuthor(draft.author || theme.author) }}
+    </template>
   </MarkdownEditor>
 </template>
 
@@ -192,6 +211,10 @@ onMounted(async () => {
 @media (min-width: 960px) {
   .blog-editor {
     --mde-site-nav-height: var(--vp-nav-height);
+  }
+
+  .blog-editor.mde-media-editor {
+    --red-gallery-nav-height: calc(var(--mde-toolbar-top) + 36px);
   }
 }
 

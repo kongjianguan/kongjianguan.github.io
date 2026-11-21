@@ -56,6 +56,15 @@ function collect(state: EditorState): Map<number, string[]> {
     enter(node) {
       if (isVerbatimContext(node.node.parent)) return
 
+      if (node.name === 'Paragraph' && node.node.parent?.name === 'Document') {
+        const previous = node.node.prevSibling
+        if (previous?.name === 'Paragraph') {
+          const last = state.doc.lineAt(previous.to).number
+          const next = state.doc.lineAt(node.from).number
+          if (next === last + 2) push(state.doc.line(last + 1).from, 'mde-paragraph-gap')
+        }
+      }
+
       const headingClass = HEADING_LINE_CLASS[node.name]
       if (headingClass) {
         push(state.doc.lineAt(node.from).from, `mde-heading ${headingClass}`)

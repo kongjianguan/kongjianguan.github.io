@@ -2,6 +2,7 @@
 import { ref, useId, watch } from 'vue'
 const props = defineProps<{
   frontmatter: Record<string, any>
+  showPhotos?: boolean
   labels?: Partial<Record<'title' | 'date' | 'categories' | 'tags' | 'permalink' | 'description', string>>
   placeholders?: Partial<Record<'title' | 'categories' | 'tags' | 'permalink' | 'description', string>>
 }>()
@@ -12,7 +13,9 @@ const emit = defineEmits<{
 
 const categoriesInput = ref('')
 const tagsInput = ref('')
+const photosInput = ref('')
 const titleFieldId = useId()
+const photosFieldId = useId()
 
 watch(() => props.frontmatter.categories, value => {
   categoriesInput.value = Array.isArray(value) ? value.join(', ') : value || ''
@@ -20,6 +23,20 @@ watch(() => props.frontmatter.categories, value => {
 watch(() => props.frontmatter.tags, value => {
   tagsInput.value = Array.isArray(value) ? value.join(', ') : value || ''
 }, { immediate: true })
+
+watch(() => props.frontmatter.photos, value => {
+  const next = Array.isArray(value) ? value.join('\n') : ''
+  if (photoPaths(photosInput.value).join('\n') !== next) photosInput.value = next
+}, { immediate: true })
+
+function photoPaths(value: string): string[] {
+  return value.split('\n').map(path => path.trim()).filter(Boolean)
+}
+
+function updatePhotos(event: Event): void {
+  photosInput.value = (event.target as HTMLTextAreaElement).value
+  setField('photos', photoPaths(photosInput.value))
+}
 
 const defaultLabels = {
   title: '标题',
@@ -111,7 +128,19 @@ function setArrayField(key: string, value: string) {
         />
       </div>
 
-      <div class="fm-row">
+      <div v-if="showPhotos" class="fm-row fm-row-wide">
+        <label class="fm-label" :for="photosFieldId">照片地址</label>
+        <textarea
+          :id="photosFieldId"
+          class="fm-textarea"
+          :value="photosInput"
+          placeholder="每行填写一个照片地址"
+          rows="3"
+          @input="updatePhotos"
+        />
+      </div>
+
+      <div class="fm-row fm-row-wide">
         <label class="fm-label">{{ label('description') }}</label>
         <textarea
           class="fm-textarea"
@@ -172,6 +201,6 @@ function setArrayField(key: string, value: string) {
 
 @media (min-width: 640px) {
   .fm-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .fm-row:last-child { grid-column: 1 / -1; }
+  .fm-row-wide { grid-column: 1 / -1; }
 }
 </style>
