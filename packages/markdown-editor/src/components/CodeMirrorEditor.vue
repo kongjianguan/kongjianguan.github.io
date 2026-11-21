@@ -16,10 +16,14 @@ const props = withDefaults(defineProps<{
   onImageError?: (message: string) => void
   onSave?: () => void
   placeholderText?: string
+  ariaLabel?: string
+  maxLength?: number
+  autoFocus?: boolean
   readOnly?: boolean
 }>(), {
   initialSelection: 0,
   placeholderText: '',
+  autoFocus: true,
   readOnly: false,
 })
 
@@ -79,6 +83,7 @@ async function insertStagedImage(editor: EditorView, file: File): Promise<void> 
 }
 
 function buildExtensions(readOnly: boolean): Extension[] {
+  const { maxLength } = props
   return [
     history(),
     markdown({
@@ -120,7 +125,10 @@ function buildExtensions(readOnly: boolean): Extension[] {
     editorTheme,
     editorHighlighting(),
     props.placeholderText ? placeholderExt(props.placeholderText) : [],
-    readOnlyCompartment.of(EditorState.readOnly.of(readOnly)),
+    props.ariaLabel ? EditorView.contentAttributes.of({ 'aria-label': props.ariaLabel }) : [],
+    maxLength === undefined ? [] : EditorState.changeFilter.of(({ changes }) =>
+      applyingExternal || changes.newLength <= maxLength || changes.newLength <= changes.length),
+    readOnlyCompartment.of([EditorState.readOnly.of(readOnly), EditorView.editable.of(!readOnly)]),
     EditorView.updateListener.of((update) => {
       if (!update.docChanged || applyingExternal) return
       emit('update:modelValue', update.state.doc.toString())
@@ -156,7 +164,7 @@ function createEditor(): void {
     navigator.maxTouchPoints > 0 ||
     window.innerWidth < 768
   )
-  if (!isTouchOrMobile) {
+  if (props.autoFocus && !isTouchOrMobile) {
     requestAnimationFrame(() => {
       view?.focus()
     })
@@ -189,7 +197,9 @@ watch(
 watch(
   () => props.readOnly,
   (readOnly) => {
-    view?.dispatch({ effects: readOnlyCompartment.reconfigure(EditorState.readOnly.of(readOnly)) })
+    view?.dispatch({ effects: readOnlyCompartment.reconfigure([
+      EditorState.readOnly.of(readOnly), EditorView.editable.of(!readOnly),
+    ]) })
   },
 )
 

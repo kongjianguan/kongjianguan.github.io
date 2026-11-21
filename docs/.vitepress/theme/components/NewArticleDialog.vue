@@ -1,7 +1,10 @@
 <script setup lang="ts" name="NewArticleDialog">
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { assembleMarkdown } from '@kongjianguan/markdown-editor/frontmatter'
+import '@kongjianguan/markdown-editor/style.css'
 import { createGitHubStorage } from '../composables/useGitHubStorage'
+
+const CodeMirrorEditor = defineAsyncComponent(() => import('@kongjianguan/markdown-editor/CodeMirrorEditor'))
 
 interface Photo {
   file: File
@@ -27,7 +30,6 @@ const columns = [
 const suggestedTags = ['日常', '摄影', '随笔', '旅行', '美食']
 const storage = createGitHubStorage({ photoPost: true })
 const modal = ref<HTMLDialogElement>()
-const textArea = ref<HTMLTextAreaElement>()
 const mode = ref<'red' | 'article'>('red')
 const title = ref('')
 const body = ref('')
@@ -56,14 +58,6 @@ let publication: { date: string; path: string } | undefined
 
 onMounted(() => modal.value?.showModal())
 onBeforeUnmount(() => photos.forEach(photo => URL.revokeObjectURL(photo.preview)))
-
-watch([body, mode], async () => {
-  await nextTick()
-  const element = textArea.value
-  if (!element) return
-  element.style.height = 'auto'
-  element.style.height = `${element.scrollHeight}px`
-})
 
 function getDate(date: Date): string {
   const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
@@ -286,10 +280,17 @@ function dismiss() {
           </label>
 
           <template v-if="mode === 'red'">
-            <label class="compose-text">
-              <span class="compose-sr-only">正文</span>
-              <textarea ref="textArea" v-model="body" rows="3" maxlength="10000" placeholder="记录这一刻…" />
-            </label>
+            <div class="compose-editor-wrap">
+              <CodeMirrorEditor
+                v-model="body"
+                class="compose-editor"
+                placeholder-text="记录这一刻…"
+                aria-label="正文"
+                :max-length="10000"
+                :auto-focus="false"
+                :read-only="busy"
+              />
+            </div>
             <div class="compose-tags" role="group" aria-label="常用标签">
               <button v-for="tag in suggestedTags" :key="tag" type="button" :aria-pressed="tags.includes(tag)" @click="toggleTag(tag)">#{{ tag }}</button>
             </div>
@@ -402,11 +403,22 @@ function dismiss() {
 .compose-photos.empty .compose-picker { min-height: 104px; aspect-ratio: auto; }
 .compose-picker input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
 .compose-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-.compose-text input, .compose-text textarea { display: block; width: 100%; padding: 7px 0; font-size: 16px; border: 0; border-radius: 0; background: transparent; color: var(--vp-c-text-1); }
-.compose-text input { font-size: 20px; font-weight: 670; }
-.compose-text textarea { min-height: 90px; max-height: 38dvh; line-height: 1.65; resize: none; }
-.compose-text :is(input, textarea):focus { outline: none; box-shadow: 0 1px var(--vp-c-brand-1); }
-.compose-text :is(input, textarea)::placeholder { color: var(--vp-c-text-2); }
+.compose-text input { display: block; width: 100%; padding: 7px 0; font-size: 20px; font-weight: 670; border: 0; border-radius: 0; background: transparent; color: var(--vp-c-text-1); }
+.compose-text input:focus { outline: none; box-shadow: 0 1px var(--vp-c-brand-1); }
+.compose-text input::placeholder { color: var(--vp-c-text-2); }
+.compose-editor-wrap { width: 100%; min-width: 0; min-height: 90px; border-radius: 4px; }
+.compose-editor { width: 100%; }
+.compose-editor :deep(.cm-editor) { background: transparent; }
+.compose-editor :deep(.cm-scroller) {
+  min-height: 90px;
+  max-height: 38dvh;
+  overflow-y: auto;
+  line-height: 1.65;
+  padding: 0;
+}
+.compose-editor :deep(.cm-content) { padding: 6px 0 12px !important; caret-color: var(--vp-c-brand-1); }
+.compose-editor :deep(.cm-line) { padding: 0; }
+.compose-editor:focus-within { box-shadow: 0 1px var(--vp-c-brand-1); }
 .compose-tags { display: flex; flex-wrap: wrap; gap: 4px 8px; }
 .compose-tags button { min-height: 40px; border-radius: 999px; padding: 0 12px; background: var(--vp-c-bg-soft); font-size: 13px; color: var(--vp-c-text-2); }
 .compose-tags button[aria-pressed='true'] { background: var(--vp-c-brand-soft); color: var(--vp-c-brand-1); box-shadow: inset 0 0 0 1px var(--vp-c-brand-1); }
