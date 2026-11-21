@@ -195,15 +195,4 @@ onMounted(async () => {
   }
 }
 
-@media (width < 960px) {
-  :global(.Layout:has(.VPLocalNav)) .blog-editor {
-    --mde-local-nav-height: 48px;
-  }
-}
-
-@media (960px <= width < 1280px) {
-  :global(.Layout:has(.VPLocalNav:not(.empty))) .blog-editor {
-    --mde-local-nav-height: 48px;
-  }
-}
 </style>

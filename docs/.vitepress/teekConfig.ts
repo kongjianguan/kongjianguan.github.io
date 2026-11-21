@@ -182,7 +182,6 @@ export const teekConfig = defineTeekConfig({
   backTop: {
     enabled: true, // 是否启动回到顶部功能
     content: "icon", // 回到顶部按钮的显示内容，可选配置 progress | icon
-    done: TkMessage => TkMessage.success("返回顶部成功"), // 回到顶部后的回调
   },
 
   // 滚动到评论区配置

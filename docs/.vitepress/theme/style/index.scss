@@ -3,3 +3,8 @@
 @use "./Fix-Horizontal-Scrollbar.scss"; // 修复水平滚动条问题
 @use "./bounce-loading.scss"; // 加载动画 - 圆点弹跳
 @use "./home-post-mobile.scss";
+
+// 隐藏局部导航/窄屏滚动置顶栏
+.VPLocalNav {
+  display: none !important;
+}
