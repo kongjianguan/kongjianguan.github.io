@@ -189,7 +189,7 @@ html.is-editing-mode,
 }
 
 .red-post-editor {
-  width: min(880px, calc(100% - 32px));
+  width: min(880px, calc(100% - 24px));
   margin-inline: auto;
 }
 
@@ -198,7 +198,28 @@ html.is-editing-mode,
 }
 
 .red-post-editor:has(.editor-controls) {
-  padding-top: var(--vp-nav-height);
+  display: block;
+  box-sizing: border-box;
+  margin-top: calc(var(--vp-nav-height) + 20px);
+  margin-bottom: 48px;
+  background: var(--vp-c-bg);
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 16px;
+  box-shadow: 0 12px 48px rgb(78 66 95 / 10%);
+  padding: 20px 24px 36px;
+
+  .editor-controls {
+    padding: 0;
+    max-width: 100%;
+  }
+
+  @media (max-width: 768px) {
+    margin-top: calc(var(--vp-nav-height) + 12px);
+    margin-bottom: 32px;
+    width: min(880px, calc(100% - 16px));
+    border-radius: 14px;
+    padding: 14px 14px 28px;
+  }
 }
 
 .tk-my.is-circle-bg {
