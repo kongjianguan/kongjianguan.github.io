@@ -104,6 +104,11 @@ function handleSaved(): void {
   pendingCreated.value = true
 }
 
+watch(isEditing, (editing) => {
+  if (typeof document === 'undefined') return
+  document.documentElement.classList.toggle('is-editing-mode', Boolean(editing))
+}, { immediate: true })
+
 watch(pageIdentity, (_next, previous) => {
   if (previous !== undefined) clearEditRequest()
   syncPendingArticle()
@@ -141,6 +146,9 @@ router.onBeforeRouteChange = routeChangeGuard
 router.onBeforePageLoad = pageLoadGuard
 
 onBeforeUnmount(() => {
+  if (typeof document !== 'undefined') {
+    document.documentElement.classList.remove('is-editing-mode')
+  }
   if (!props.standaloneOnly) clearEditRequest()
   if (router.onBeforeRouteChange === routeChangeGuard) router.onBeforeRouteChange = undefined
   if (router.onBeforePageLoad === pageLoadGuard) router.onBeforePageLoad = undefined

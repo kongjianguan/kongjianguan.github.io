@@ -175,6 +175,19 @@ function handleNewArticle(payload: { path: string; title: string; template: stri
 </template>
 
 <style lang="scss">
+html.is-editing-mode,
+:root:has(.blog-editor) {
+  .VPDoc .content-container > .main,
+  .VPDoc .aside,
+  .VPDocFooter,
+  .VPDoc .doc-after,
+  main.red-post,
+  .tk-comment,
+  .teek-comment {
+    display: none !important;
+  }
+}
+
 .red-post-editor {
   width: min(880px, calc(100% - 32px));
   margin-inline: auto;

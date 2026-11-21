@@ -19,15 +19,21 @@ export const editorTheme = EditorView.theme({
     outline: 'none',
   },
   '.cm-scroller': {
-    overflow: 'auto',
+    overflowX: 'auto',
+    overflowY: 'visible',
     lineHeight: '1.75',
     fontFamily: 'var(--mde-font-family)',
     padding: '8px 0',
   },
   '.cm-content': {
     padding: '8px 4px',
-    paddingBottom: '35vh',
+    paddingBottom: '240px',
     caretColor: 'var(--mde-brand)',
+  },
+  '@media (max-width: 767px)': {
+    '.cm-content': {
+      paddingBottom: '100px',
+    },
   },
   '.cm-line': {
     padding: '0 8px',

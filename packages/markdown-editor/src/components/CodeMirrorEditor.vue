@@ -151,10 +151,16 @@ function createEditor(): void {
     parent: editorRef.value,
   })
 
-  requestAnimationFrame(() => {
-    view?.focus()
-    view?.dispatch({ scrollIntoView: true })
-  })
+  const isTouchOrMobile = typeof window !== 'undefined' && (
+    'ontouchstart' in window ||
+    navigator.maxTouchPoints > 0 ||
+    window.innerWidth < 768
+  )
+  if (!isTouchOrMobile) {
+    requestAnimationFrame(() => {
+      view?.focus()
+    })
+  }
 }
 
 onMounted(createEditor)
