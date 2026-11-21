@@ -304,15 +304,16 @@ onBeforeUnmount(resetZoom)
 </template>
 
 <style scoped>
-.photo-gallery { position: relative; min-width: 0; background: var(--vp-c-bg-soft); }
+.photo-gallery { position: relative; min-width: 0; background: transparent; }
 .photo-track {
   display: flex;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
   scrollbar-width: none;
   overscroll-behavior-x: contain;
+  background: transparent;
 }
-.photo-slide { position: relative; flex: 0 0 100%; min-width: 0; scroll-snap-align: start; scroll-snap-stop: always; cursor: zoom-in; }
+.photo-slide { position: relative; flex: 0 0 100%; min-width: 0; scroll-snap-align: start; scroll-snap-stop: always; cursor: zoom-in; background: transparent; border: none; }
 .photo-slide:focus-visible { outline-offset: -4px; }
 .photo-slide img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
 .photo-count, .photo-arrow, .photo-dots {
