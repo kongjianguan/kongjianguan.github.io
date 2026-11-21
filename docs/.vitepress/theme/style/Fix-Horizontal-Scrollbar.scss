@@ -12,6 +12,13 @@ body,
   overflow-x: clip;
 }
 
+// 桌面图文画廊以页面视口作为吸附区域。
+@media (min-width: 960px) {
+  :is(html, body, #app):has(.photo-sticky-wrap) {
+    overflow-x: clip;
+  }
+}
+
 // 避免元素宽度把视口撑爆
 *,
 *::before,

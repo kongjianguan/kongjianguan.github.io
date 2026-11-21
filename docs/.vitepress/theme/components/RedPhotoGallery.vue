@@ -208,36 +208,40 @@ onBeforeUnmount(resetZoom)
     @keydown.left.prevent="goTo(active - 1)"
     @keydown.right.prevent="goTo(active + 1)"
   >
-    <div ref="track" class="photo-track" @scroll.passive="updatePosition">
-      <button
-        v-for="(photo, index) in photos"
-        :key="index"
-        class="photo-slide"
-        :style="{ aspectRatio: String(frameRatio) }"
-        type="button"
-        :tabindex="index === active ? 0 : -1"
-        :aria-label="`预览第 ${index + 1} 张照片`"
-        @click="openPreview(index)"
-      >
-        <img :src="photo" :alt="`${title} · 照片 ${index + 1}`" draggable="false" @load="measureImage(index, $event.currentTarget as HTMLImageElement)" />
-      </button>
-    </div>
+    <div class="photo-sticky-wrap">
+      <div class="photo-stage">
+        <div ref="track" class="photo-track" @scroll.passive="updatePosition">
+          <button
+            v-for="(photo, index) in photos"
+            :key="index"
+            class="photo-slide"
+            :style="{ aspectRatio: String(frameRatio) }"
+            type="button"
+            :tabindex="index === active ? 0 : -1"
+            :aria-label="`预览第 ${index + 1} 张照片`"
+            @click="openPreview(index)"
+          >
+            <img :src="photo" :alt="`${title} · 照片 ${index + 1}`" draggable="false" @load="measureImage(index, $event.currentTarget as HTMLImageElement)" />
+          </button>
+        </div>
 
-    <template v-if="photos.length > 1">
-      <span class="photo-count" aria-live="polite">{{ active + 1 }} / {{ photos.length }}</span>
-      <button class="photo-arrow previous" type="button" aria-label="上一张照片" :disabled="active === 0" @click="goTo(active - 1)">‹</button>
-      <button class="photo-arrow next" type="button" aria-label="下一张照片" :disabled="active === photos.length - 1" @click="goTo(active + 1)">›</button>
-      <div class="photo-dots" aria-label="选择照片">
-        <button
-          v-for="(_, index) in photos"
-          :key="index"
-          type="button"
-          :aria-label="`查看第 ${index + 1} 张照片`"
-          :aria-current="index === active ? 'true' : undefined"
-          @click="goTo(index)"
-        />
+        <template v-if="photos.length > 1">
+          <span class="photo-count" aria-live="polite">{{ active + 1 }} / {{ photos.length }}</span>
+          <button class="photo-arrow previous" type="button" aria-label="上一张照片" :disabled="active === 0" @click="goTo(active - 1)">‹</button>
+          <button class="photo-arrow next" type="button" aria-label="下一张照片" :disabled="active === photos.length - 1" @click="goTo(active + 1)">›</button>
+          <div class="photo-dots" aria-label="选择照片">
+            <button
+              v-for="(_, index) in photos"
+              :key="index"
+              type="button"
+              :aria-label="`查看第 ${index + 1} 张照片`"
+              :aria-current="index === active ? 'true' : undefined"
+              @click="goTo(index)"
+            />
+          </div>
+        </template>
       </div>
-    </template>
+    </div>
 
     <Teleport to="body">
       <dialog
@@ -304,7 +308,8 @@ onBeforeUnmount(resetZoom)
 </template>
 
 <style scoped>
-.photo-gallery { position: relative; min-width: 0; background: transparent; }
+.photo-gallery { min-width: 0; background: transparent; }
+.photo-stage { position: relative; }
 .photo-track {
   display: flex;
   overflow-x: auto;
@@ -319,11 +324,11 @@ onBeforeUnmount(resetZoom)
 .photo-count, .photo-arrow, .photo-dots {
   position: absolute;
   border-radius: 999px;
-  background: rgb(20 20 24 / 74%);
   color: white;
 }
+.photo-count, .photo-dots { background: rgb(20 20 24 / 74%); }
 .photo-count { top: 12px; right: 12px; padding: 3px 11px; font-size: 13px; font-variant-numeric: tabular-nums; pointer-events: none; }
-.photo-arrow { display: none; top: 50%; width: 44px; height: 44px; transform: translateY(-50%); font-size: 30px; }
+.photo-arrow { display: none; top: 50%; width: 44px; height: 44px; transform: translateY(-50%); font-size: 30px; background: transparent; text-shadow: 0 1px 4px rgb(0 0 0 / 90%); }
 .photo-arrow:disabled { opacity: .35; cursor: default; }
 .previous { left: 12px; }
 .next { right: 12px; }
@@ -444,12 +449,19 @@ onBeforeUnmount(resetZoom)
 
 @media (min-width: 960px) {
   .photo-gallery {
-    align-self: center;
-    justify-self: center;
+    align-self: stretch;
+    height: 100%;
+    min-height: 0;
+  }
+  .photo-sticky-wrap {
     position: sticky;
     top: calc(var(--vp-nav-height) + 24px);
-    width: min(100%, calc((100dvh - var(--vp-nav-height) - 48px) * var(--frame-ratio)));
+    height: calc(100dvh - var(--vp-nav-height) - 48px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
+  .photo-stage { width: min(100%, calc((100dvh - var(--vp-nav-height) - 48px) * var(--frame-ratio))); }
   .photo-arrow { display: block; }
 }
 </style>

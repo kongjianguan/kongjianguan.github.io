@@ -68,6 +68,11 @@ const tags = computed(() => [frontmatter.value.tags ?? []].flat().filter(Boolean
 
 @media (min-width: 960px) {
   .red-post { margin-top: 28px; }
-  .red-post.with-photos { width: min(1180px, calc(100% - 64px)); display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); }
+  .red-post.with-photos {
+    margin-top: 28px;
+    width: min(1180px, calc(100% - 64px));
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  }
 }
 </style>
