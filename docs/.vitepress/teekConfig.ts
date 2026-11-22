@@ -74,7 +74,8 @@ export const teekConfig = defineTeekConfig({
     description: [
       "一生バンドしてくれる？-「迷途之子」",
       "为世界上一切美好而战！-「崩坏3rd」",
-      "Get it pulverized - 「Interstellar Journey」"
+      "Get it pulverized - 「Interstellar Journey」",
+      "眩しき光に 解けぬ迷い　独り弾く残弦 我が身の響き"
       ], // 描述信息
     switchTime: 6000, // 描述信息切换间隔时间，单位：毫秒。descStyle 为 switch 时生效
     switchShuffle: true, // 描述信息是否随机切换，为 false 时按顺序切换。descStyle 为 switch 时生效
