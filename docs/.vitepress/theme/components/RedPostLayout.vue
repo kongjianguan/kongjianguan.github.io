@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useData, useRoute } from 'vitepress'
-import { TkCommentGiscus } from 'vitepress-theme-teek'
+import { useData, useRoute, withBase } from 'vitepress'
+import { TkCommentGiscus, usePosts } from 'vitepress-theme-teek'
 import ArticleContent from './ArticleContent.vue'
 import RedPhotoGallery from './RedPhotoGallery.vue'
 import { getPostAuthor, getPostPhotos, resolvePostImage } from '../redPost'
 
 const { frontmatter, page, site, theme } = useData()
 const route = useRoute()
+const posts = usePosts()
 const photos = computed(() => getPostPhotos(frontmatter.value.photos)
   .map(photo => resolvePostImage(photo, theme.value.photoImageBase, site.value.base)))
 const title = computed(() => frontmatter.value.title || page.value.title)
@@ -16,7 +17,23 @@ const date = computed(() => {
   const value = frontmatter.value.date
   return String(value instanceof Date ? value.toISOString() : value ?? '').slice(0, 10)
 })
+const categories = computed(() => [frontmatter.value.categories ?? []].flat().filter(Boolean))
 const tags = computed(() => [frontmatter.value.tags ?? []].flat().filter(Boolean))
+
+function normalizeRoutePath(value: string): string {
+  return decodeURI(value).replace(/\.html$/, '').replace(/\/$/, '') || '/'
+}
+
+const adjacentPosts = computed(() => {
+  const list = posts?.value?.sortPostsByDate ?? []
+  const currentPath = normalizeRoutePath(route.path)
+  const index = list.findIndex(item => normalizeRoutePath(item.url) === currentPath)
+  if (index === -1) return { prev: undefined, next: undefined }
+  return {
+    prev: index > 0 ? list[index - 1] : undefined,
+    next: index < list.length - 1 ? list[index + 1] : undefined,
+  }
+})
 </script>
 
 <template>
@@ -26,6 +43,13 @@ const tags = computed(() => [frontmatter.value.tags ?? []].flat().filter(Boolean
 
     <article class="red-post-copy">
       <header>
+        <nav class="red-post-breadcrumb" aria-label="文章导航">
+          <a :href="withBase('/')">首页</a>
+          <template v-if="categories.length">
+            <span aria-hidden="true">/</span>
+            <span>{{ categories[0] }}</span>
+          </template>
+        </nav>
         <div class="red-post-byline">
           <span v-if="author" class="red-post-author">{{ author }}</span>
           <time v-if="date" :datetime="date">{{ date }}</time>
@@ -38,6 +62,17 @@ const tags = computed(() => [frontmatter.value.tags ?? []].flat().filter(Boolean
       <ul v-if="tags.length" class="red-post-tags" aria-label="标签">
         <li v-for="tag in tags" :key="tag">#{{ tag }}</li>
       </ul>
+
+      <nav v-if="adjacentPosts.prev || adjacentPosts.next" class="red-post-pager" aria-label="相邻文章">
+        <a v-if="adjacentPosts.prev" class="red-post-pager-link prev" :href="adjacentPosts.prev.url">
+          <span class="pager-label">上一篇</span>
+          <span class="pager-title">{{ adjacentPosts.prev.title || adjacentPosts.prev.url }}</span>
+        </a>
+        <a v-if="adjacentPosts.next" class="red-post-pager-link next" :href="adjacentPosts.next.url">
+          <span class="pager-label">下一篇</span>
+          <span class="pager-title">{{ adjacentPosts.next.title || adjacentPosts.next.url }}</span>
+        </a>
+      </nav>
 
       <section v-if="frontmatter.comment !== false && theme.comment?.provider === 'giscus'" class="red-post-comments" aria-label="评论" data-pagefind-ignore>
         <TkCommentGiscus :key="route.path" />
@@ -59,12 +94,21 @@ const tags = computed(() => [frontmatter.value.tags ?? []].flat().filter(Boolean
   overflow: clip;
 }
 .red-post-copy { min-width: 0; padding: clamp(20px, 2.5vw, 36px); overflow-wrap: anywhere; }
+.red-post-breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; font-size: 13px; color: var(--vp-c-text-3); }
+.red-post-breadcrumb a { color: var(--vp-c-text-2); text-decoration: none; transition: color 0.2s; }
+.red-post-breadcrumb a:hover { color: var(--vp-c-brand-1); }
 .red-post-byline { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; font-size: 13px; color: var(--vp-c-text-2); }
 .red-post-author { font-weight: 650; color: var(--vp-c-text-1); }
 .red-post h1 { margin: 12px 0 16px; font-weight: 750; font-size: clamp(22px, 2.2vw, 32px); line-height: 1.28; text-wrap: pretty; word-break: normal; overflow-wrap: break-word; }
 .red-post-body :deep(> div > :first-child) { margin-top: 0; }
 .red-post-tags { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0 0; }
 .red-post-tags li { border-radius: 999px; padding: 3px 11px; background: var(--vp-c-brand-soft); color: var(--vp-c-brand-1); font-size: 13px; }
+.red-post-pager { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: 10px; margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--vp-c-divider); }
+.red-post-pager-link { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border: 1px solid var(--vp-c-divider); border-radius: 10px; text-decoration: none; transition: border-color 0.2s, background-color 0.2s; min-width: 0; }
+.red-post-pager-link:hover { border-color: var(--vp-c-brand-1); background: var(--vp-c-bg-soft); }
+.red-post-pager-link.next { text-align: right; }
+.pager-label { font-size: 12px; color: var(--vp-c-text-3); }
+.pager-title { font-size: 14px; font-weight: 500; color: var(--vp-c-brand-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .red-post-comments { border-top: 1px solid var(--vp-c-divider); margin-top: 26px; padding-top: 20px; }
 
 @media (min-width: 960px) {

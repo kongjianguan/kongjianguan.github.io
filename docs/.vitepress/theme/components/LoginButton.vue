@@ -1,5 +1,6 @@
 <script setup lang="ts" name="LoginButton">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { TkMessage } from 'vitepress-theme-teek'
 import { useGitHubAuth } from '../composables/useGitHubAuth'
 
 const { isLoggedIn, user, login, loginPending, prepareLogin, logout } = useGitHubAuth()
@@ -13,14 +14,14 @@ function toggleMenu() {
 async function handleLogout() {
   menuOpen.value = false
   const ok = await logout()
-  if (!ok) alert('退出登录失败，请检查网络后重试')
+  if (!ok) TkMessage.error('退出登录失败，请检查网络后重试')
 }
 
 async function handleLogin() {
   try {
     await login()
   } catch (error) {
-    alert(error instanceof Error ? error.message : 'GitHub 登录失败')
+    TkMessage.error(error instanceof Error ? error.message : 'GitHub 登录失败')
   }
 }
 

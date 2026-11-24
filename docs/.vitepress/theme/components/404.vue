@@ -1,10 +1,10 @@
 
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref } from "vue";
-import { useRouter } from "vitepress";
+import { useRouter, withBase } from "vitepress";
 
 const router = useRouter();
-const goHome = () => router.go("/");
+const goHome = () => router.go(withBase("/"));
 const bgImage = `url(https://cdn.jsdmirror.com/gh/kongjianguan/images/109932844.png)`;
 
 const count = ref(0);
@@ -69,9 +69,18 @@ onMounted(() => {
   align-items: stretch;
   background-image: v-bind(bgImage);
   background-size: cover;
+  background-position: center;
   background-repeat: no-repeat;
-  color: rgba(255, 255, 255, 0.87);
+  color: rgba(255, 255, 255, 0.92);
   overflow: hidden;
+}
+
+.error-page-2::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(12, 14, 24, 0.45), rgba(12, 14, 24, 0.72));
+  pointer-events: none;
 }
 
 .number{
@@ -90,6 +99,8 @@ onMounted(() => {
 }
 
 .container {
+  position: relative;
+  z-index: 1;
   width: 100%;
 }
 
@@ -104,6 +115,7 @@ onMounted(() => {
   justify-content: center;
   align-items: center;
   height: 100%;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.45);
 }
 
 #countUp .number {

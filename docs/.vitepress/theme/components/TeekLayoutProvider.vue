@@ -1,5 +1,5 @@
 <script setup lang="ts" name="TeekLayoutProvider">
-import Teek from "vitepress-theme-teek";
+import Teek, { TkMessage } from "vitepress-theme-teek";
 import NotFound from "./404.vue";
 import ArticleContent from "./ArticleContent.vue";
 import LoginButton from "./LoginButton.vue";
@@ -58,13 +58,13 @@ onMounted(async () => {
   const { consumeAuthError } = useGitHubAuth();
   const authErr = consumeAuthError();
   if (authErr) {
-    alert(authErr);
+    TkMessage.error(authErr);
   }
 });
 
 function handleNewArticle(payload: { path: string; title: string; template: string }) {
   if (!isLoggedIn.value) {
-    alert('请先登录 GitHub')
+    TkMessage.warning('请先登录 GitHub')
     return
   }
 

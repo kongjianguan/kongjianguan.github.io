@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 const props = defineProps<{ photos: string[]; title: string }>()
 const active = ref(0)
@@ -32,8 +32,25 @@ function measureImage(index: number, image: HTMLImageElement) {
   }
 }
 
+const preloadedPhotos = new Set<string>()
+function preloadAdjacent(index: number) {
+  if (typeof window === 'undefined') return
+  for (const offset of [-1, 1]) {
+    const src = props.photos[index + offset]
+    if (!src || preloadedPhotos.has(src)) continue
+    preloadedPhotos.add(src)
+    const img = new Image()
+    img.src = src
+  }
+}
+
+watch(active, index => preloadAdjacent(index))
+
 // Image loads can finish before VitePress hydrates the server-rendered gallery.
-onMounted(() => track.value?.querySelectorAll('img').forEach((image, index) => measureImage(index, image)))
+onMounted(() => {
+  track.value?.querySelectorAll('img').forEach((image, index) => measureImage(index, image))
+  preloadAdjacent(active.value)
+})
 
 function updatePosition() {
   const element = track.value!

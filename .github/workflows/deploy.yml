@@ -1,4 +1,4 @@
-name: Deploy VitePress site to Pages
+name: Verify and Deploy VitePress site
 
 on:
   push:
@@ -15,59 +15,73 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  build:
+  checks:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 22
-      - uses: pnpm/action-setup@v4
-      - name: Setup Pages
-        if: github.event_name != 'pull_request'
-        uses: actions/configure-pages@v4
+          cache: 'pnpm'
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
       - name: Validate editor API sources
         run: pnpm validate:api
       - name: Bundle editor API
-        run: |
-          pnpm dlx esbuild api/auth/callback.ts --bundle --format=esm --platform=neutral --outfile=/tmp/kj-api-callback.mjs
-          pnpm dlx esbuild api/auth/me.ts --bundle --format=esm --platform=neutral --outfile=/tmp/kj-api-me.mjs
-          pnpm dlx esbuild api/auth/logout.ts --bundle --format=esm --platform=neutral --outfile=/tmp/kj-api-logout.mjs
-          pnpm dlx esbuild api/github/contents.ts --bundle --format=esm --platform=neutral --outfile=/tmp/kj-api-contents.mjs
-          pnpm dlx esbuild api/github/upload.ts --bundle --format=esm --platform=neutral --outfile=/tmp/kj-api-upload.mjs
+        run: pnpm dlx esbuild api/auth/callback.ts api/auth/me.ts api/auth/logout.ts api/github/contents.ts api/github/upload.ts --bundle --format=esm --platform=neutral --outdir=/tmp/kj-api
       - name: Validate content
         run: pnpm validate:content
       - name: Type-check markdown editor
         run: pnpm typecheck
       - name: Test markdown editor
         run: pnpm test
+
+  build:
+    # 主站流量已由 Vercel 托管，GitHub Pages 构建与部署仅保留为手动触发备份，避免每次 push 重复全量构建。
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+      - name: Install production dependencies
+        run: pnpm install --frozen-lockfile --prod
+      - name: Cache VitePress build
+        uses: actions/cache@v4
+        with:
+          path: docs/.vitepress/cache
+          key: ${{ runner.os }}-vitepress-${{ hashFiles('docs/**/*.md', 'docs/.vitepress/**', 'packages/markdown-editor/src/**', 'pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-vitepress-
       - name: Build with VitePress
         run: pnpm build
       - name: Upload artifact
-        if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v3
         with:
           path: docs/.vitepress/dist
 
   deploy:
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    needs: build
+    needs: [checks, build]
     runs-on: ubuntu-latest
     name: Deploy
     steps:

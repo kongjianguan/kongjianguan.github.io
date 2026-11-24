@@ -11,7 +11,7 @@ let checkedFiles = 0
 
 function isStringArray(value) {
   return value === undefined || value === null || (
-    Array.isArray(value) && value.every(item => item === null || typeof item === 'string')
+    Array.isArray(value) && value.every(item => typeof item === 'string' && item.trim().length > 0)
   )
 }
 

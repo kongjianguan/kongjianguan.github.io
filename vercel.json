@@ -1,5 +1,6 @@
 {
   "cleanUrls": true,
+  "installCommand": "pnpm install --frozen-lockfile --prod",
   "rewrites": [
     { "source": "/__auth/callback", "destination": "/__auth/callback.html" }
   ],

@@ -1,5 +1,5 @@
 <script setup lang="ts" name="ContributeChart">
-import { ref, watch, nextTick, computed, useTemplateRef, onMounted } from "vue";
+import { ref, watch, nextTick, computed, useTemplateRef, onMounted, onBeforeUnmount } from "vue";
 import { useData } from "vitepress";
 import { formatDate, usePosts, useIntersectionObserver } from "vitepress-theme-teek";
 
@@ -30,7 +30,16 @@ const contributeList = computed(() => {
 
 const chartRef = useTemplateRef("chartRef");
 const contributeChart = ref();
-const echartsPromise = import("echarts");
+const echartsPromise = Promise.all([
+  import("echarts/core"),
+  import("echarts/charts"),
+  import("echarts/components"),
+  import("echarts/renderers"),
+]).then(([echarts, { HeatmapChart }, { CalendarComponent, TooltipComponent, VisualMapComponent }, { CanvasRenderer }]) => {
+  echarts.use([HeatmapChart, CalendarComponent, TooltipComponent, VisualMapComponent, CanvasRenderer]);
+  return echarts;
+});
+let resizeObserver: ResizeObserver | undefined;
 
 const { create } = useIntersectionObserver(
   chartRef,
@@ -136,7 +145,22 @@ watch(isDark, async () => {
 });
 
 onMounted(() => {
-  if (chartRef.value) create();
+  if (chartRef.value) {
+    create();
+    if (typeof ResizeObserver !== "undefined") {
+      resizeObserver = new ResizeObserver(() => contributeChart.value?.resize());
+      resizeObserver.observe(chartRef.value);
+    }
+  }
+});
+
+onBeforeUnmount(() => {
+  resizeObserver?.disconnect();
+  resizeObserver = undefined;
+  if (contributeChart.value) {
+    contributeChart.value.dispose();
+    contributeChart.value = undefined;
+  }
 });
 </script>
 
@@ -148,7 +172,7 @@ onMounted(() => {
 
 <style>
 .tk-article-page.tk-archives {
-  width: 1220px;
+  width: min(1220px, 100%);
 }
 
 .tk-archives .contribute__chart {

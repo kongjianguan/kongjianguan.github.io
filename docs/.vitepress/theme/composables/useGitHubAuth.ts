@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+import { TkMessage } from 'vitepress-theme-teek'
 
 const CLIENT_ID = 'Ov23liU7H301C2GpbL74'
 const AUTH_CALLBACK_PATH = '/__auth/callback'
@@ -162,7 +163,7 @@ function startPopupMessageListener(): void {
       }
     } else if (event.data.error && event.data.error !== 'access_denied' && event.data.error !== 'GitHub 登录已取消') {
       console.error('GitHub OAuth error:', event.data.error)
-      alert(event.data.error)
+      TkMessage.error(event.data.error)
     } else if (event.data.error) {
       console.error('GitHub OAuth error:', event.data.error)
     }
@@ -175,12 +176,12 @@ export function useGitHubAuth() {
     user.value = { login: 'local-dev', avatar_url: '' }
   }
 
+  // 仅当存在同周期签发的 CSRF Cookie 时才向服务端校验会话，避免匿名访客首屏触发无效 401/404 请求
   if (typeof window !== 'undefined' && !LOCAL_AUTH && !sessionCheckStarted) {
     sessionCheckStarted = true
-    void loadSession()
-  }
-  if (typeof window !== 'undefined' && !LOCAL_AUTH && !isLoggedIn.value) {
-    void prepareAuthCredentials()
+    if (getCookie('github_csrf')) {
+      void loadSession()
+    }
   }
   startPopupMessageListener()
 

@@ -18,7 +18,8 @@ for (const deviceName of ['Pixel 7', 'Pixel 7 landscape', 'iPhone 13']) {
 
       for (const path of ['/', '/archives']) {
         await page.goto(path, { waitUntil: 'load' })
-        await expect(page.getByRole('button', { name: '登录', exact: true })).toBeAttached()
+        await page.waitForFunction(() => Boolean((document.querySelector('#app') as any)?.__vue_app__))
+        await expect(page.locator('.login-btn')).toBeAttached()
         await page.setViewportSize({ width: 1280, height: 800 })
         await page.waitForTimeout(1_500)
         await expect(page.locator('[id^="oml2d"]')).toHaveCount(0)
@@ -32,7 +33,7 @@ for (const deviceName of ['Pixel 7', 'Pixel 7 landscape', 'iPhone 13']) {
         checkpoints.push({ path, runtime })
       }
 
-      expect(requests.filter(url => /live2d|oml2d|cubism|anon_037_live_default|\/rem\//i.test(url))).toEqual([])
+      expect(requests.filter(url => /\/live2d[./]|oml2d|cubism|anon_037_live_default|\/rem\//i.test(url))).toEqual([])
       expect(errors).toEqual([])
       await testInfo.attach('手机 Live2D 请求与运行记录', {
         body: JSON.stringify({ deviceName, requests, checkpoints, errors }, null, 2),

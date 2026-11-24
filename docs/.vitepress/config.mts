@@ -1,4 +1,6 @@
 // 主配置文件
+import { readdir, readFile, rm } from 'node:fs/promises'
+import path from 'node:path'
 import { defineConfig, loadEnv } from 'vitepress'
 import { teekConfig } from "./teekConfig"
 import { getPostPhotos, isRedPost, resolvePostImage } from './theme/redPost'
@@ -7,9 +9,41 @@ import type { HeadConfig } from "vitepress"; // 在文件顶部添加类型导�
 import { chineseSearchOptimize, pagefindPlugin } from 'vitepress-plugin-pagefind'
 import { createRewrites } from "vitepress-theme-teek/config";
 
+const siteOrigin = 'https://kongjianguan.fyi'
+const defaultOgImage = 'https://cdn.jsdmirror.com/gh/kongjianguan/images/avatar.jpg'
 const photoImageBase = process.env.LOCALIMGSRC === '1'
   ? '/images'
   : 'https://cdn.jsdmirror.com/gh/kongjianguan/kongjianguan.github.io@main/docs/public/images'
+
+async function collectReferencedRootImages(roots: string[]): Promise<Set<string>> {
+  const referenced = new Set<string>()
+  const ignoredDirs = new Set(['.vitepress', 'dist', 'cache', 'node_modules', 'public'])
+
+  async function walk(directory: string) {
+    let entries
+    try {
+      entries = await readdir(directory, { withFileTypes: true })
+    } catch {
+      return
+    }
+    for (const entry of entries) {
+      const fullPath = path.join(directory, entry.name)
+      if (entry.isDirectory()) {
+        if (!ignoredDirs.has(entry.name)) await walk(fullPath)
+        continue
+      }
+      if (!/\.(md|ts|mts|js|mjs|vue)$/i.test(entry.name)) continue
+      const text = await readFile(fullPath, 'utf8')
+      for (const match of text.matchAll(/\/images\/([^"'()\s<>]+?)(?=["'()\s<>]|$)/g)) {
+        const rel = match[1]
+        if (!rel.includes('/')) referenced.add(rel)
+      }
+    }
+  }
+
+  for (const root of roots) await walk(root)
+  return referenced
+}
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
@@ -19,7 +53,7 @@ export default defineConfig(({ mode }) => {
   return {
   
   title: "KONGJIANGUAN",
-  description: "え？雲☁😄、タッタッタッタッタ、原神がめちゃくちゃやりたい😨、クラウド原神😙、ドンドンドンドン😊、華やかな世界を見よう👍🎊😆、クラウド原神😄、うううう、原神がやりたい😭😭😭クラウド原神、友達が待ってるよ😊😃😆、一緒に原神をやろう、クラウド原神！あああああ😙、原神がやりたい😙クラウド原神、ははははは🤣🤣🤣、一緒に原神をやろう、クラウド原神、すごくすごく、🤩原神がやりたい😋ウェブクラウド版、低消費電力で画質も劣化なし😌、WiFiもLANケーブルも🥰、どっちでも60フレーム😍、さあさあ👏、クラウド原神に入ろう",
+  description: "kongjianguan的日记",
   base: '/',
   head: HeadData as HeadConfig[],
   extends: teekConfig,
@@ -34,12 +68,73 @@ export default defineConfig(({ mode }) => {
     frontmatter.sidebar = false
   },
 
+  transformHead({ pageData, siteConfig }) {
+    if (pageData.isNotFound) return
+    const rawPermalink = typeof pageData.frontmatter?.permalink === 'string'
+      ? pageData.frontmatter.permalink.trim()
+      : ''
+    const pathname = rawPermalink
+      ? (rawPermalink.startsWith('/') ? rawPermalink : `/${rawPermalink}`)
+      : `/${pageData.relativePath.replace(/(^|\/)index\.md$/, '$1').replace(/\.md$/, '')}`.replace(/\/+/g, '/')
+    const canonicalUrl = new URL(pathname, siteOrigin).href
+    const ogTitle = String(pageData.frontmatter?.title || pageData.title || siteConfig.site.title)
+    const ogDescription = String(pageData.frontmatter?.description || pageData.description || siteConfig.site.description)
+    const isHome = pageData.relativePath === 'index.md' || pageData.frontmatter?.layout === 'home'
+    const ogType = isHome ? 'website' : 'article'
+
+    let rawImage = ''
+    if (isRedPost(pageData.frontmatter)) {
+      const photos = getPostPhotos(pageData.frontmatter.photos)
+      const candidate = pageData.frontmatter.coverImg || pageData.frontmatter.cover || photos[0]
+      if (typeof candidate === 'string') {
+        rawImage = resolvePostImage(candidate, photoImageBase, siteConfig.site.base)
+      }
+    } else if (typeof pageData.frontmatter?.coverImg === 'string') {
+      rawImage = resolvePostImage(pageData.frontmatter.coverImg, photoImageBase, siteConfig.site.base)
+    }
+    const ogImage = rawImage
+      ? (rawImage.startsWith('/') ? new URL(rawImage, siteOrigin).href : rawImage)
+      : defaultOgImage
+
+    return [
+      ['link', { rel: 'canonical', href: canonicalUrl }],
+      ['meta', { property: 'og:type', content: ogType }],
+      ['meta', { property: 'og:site_name', content: siteConfig.site.title }],
+      ['meta', { property: 'og:title', content: ogTitle }],
+      ['meta', { property: 'og:description', content: ogDescription }],
+      ['meta', { property: 'og:url', content: canonicalUrl }],
+      ['meta', { property: 'og:image', content: ogImage }],
+      ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
+    ]
+  },
+
+  async buildEnd(siteConfig) {
+    if (process.env.LOCALIMGSRC === '1') return
+    const imagesOutDir = path.join(siteConfig.outDir, 'images')
+    let entries
+    try {
+      entries = await readdir(imagesOutDir, { withFileTypes: true })
+    } catch {
+      return
+    }
+    // 生产环境背景图由外部图床加载，仅保留文章与测试直接引用的静态图片，避免冗余壁纸打入部署产物。
+    const referenced = await collectReferencedRootImages([
+      path.resolve('docs'),
+      path.resolve('e2e'),
+    ])
+    await Promise.all(
+      entries
+        .filter(entry => entry.isFile() && !referenced.has(entry.name))
+        .map(entry => rm(path.join(imagesOutDir, entry.name), { force: true })),
+    )
+  },
+
   // https://vitepress.dev/zh/guide/sitemap-generation
   sitemap: {
-    hostname: 'https://kongjianguan.github.io',
+    hostname: siteOrigin,
     transformItems(items) {
       return items.filter(item => (
-        new URL(item.url, 'https://kongjianguan.github.io').pathname !== '/__auth/callback'
+        new URL(item.url, siteOrigin).pathname !== '/__auth/callback'
       ))
     },
   },

@@ -1,0 +1,14 @@
+.git
+.github
+.scratch
+.pnpm-store
+node_modules
+e2e
+playwright.config.ts
+playwright.production.config.ts
+docs/.vitepress/dist
+docs/.vitepress/cache
+docs/superpowers
+specs
+scripts/measure-cold-load.mjs
+scripts/verify-mobile-editor.mjs
